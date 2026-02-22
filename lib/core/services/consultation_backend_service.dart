@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 
 class ConsultationBackendService {
   // For Android emulator, replace localhost with 10.0.2.2
-  static const String baseUrl = 'http://localhost:5000/api/consultations';
+  static const String baseUrl =
+      'https://pulsecare-production-ae31.up.railway.app/api/consultations';
 
   Future<void> sendScheduleEmail({
     required String patientId,

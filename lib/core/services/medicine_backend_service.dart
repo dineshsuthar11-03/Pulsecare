@@ -7,7 +7,8 @@ import 'package:http/http.dart' as http;
 class MedicineBackendService {
   // NOTE: For Android emulator, use 10.0.2.2 instead of localhost.
   // For web/desktop, localhost works.
-  static const String baseUrl = 'http://localhost:5000/api/medicines';
+  static const String baseUrl =
+      'https://pulsecare-production-ae31.up.railway.app/api/medicines';
 
   Future<List<MedicineModel>> searchMedicines(String query) async {
     if (query.trim().isEmpty) {

@@ -6,7 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class BackendAuthService {
   // Use 10.0.2.2 for Android Emulator, or your local IP for physical devices
   // For Chrome/Web, localhost works.
-  static const String baseUrl = 'http://localhost:5000/api/auth';
+  static const String baseUrl =
+      'https://pulsecare-production-ae31.up.railway.app/api/auth';
 
   Future<Map<String, dynamic>> signup({
     required String email,
