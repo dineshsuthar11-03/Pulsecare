@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Nearby Medical Stores</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Leaflet CSS for OpenStreetMap rendering -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+
+    <style>
+      html,
+      body,
+      #map {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <!-- Leaflet JS -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+
+    <script>
+      const DEFAULT_CENTER = { lat: 28.6139, lon: 77.2090 }; // New Delhi fallback
+      const SEARCH_RADIUS_METERS = 2000; // 2km
+
+      function initMap(lat, lon) {
+        const centerLat = lat ?? DEFAULT_CENTER.lat;
+        const centerLon = lon ?? DEFAULT_CENTER.lon;
+
+        const map = L.map('map').setView([centerLat, centerLon], 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
+
+        // Marker for the user location / center
+        L.marker([centerLat, centerLon])
+          .addTo(map)
+          .bindPopup('You are here')
+          .openPopup();
+
+        // Build Overpass query: nearby pharmacies (medical stores)
+        const query = `
+          [out:json];
+          (
+            node["amenity"="pharmacy"](around:${SEARCH_RADIUS_METERS},${centerLat},${centerLon});
+            way["amenity"="pharmacy"](around:${SEARCH_RADIUS_METERS},${centerLat},${centerLon});
+            relation["amenity"="pharmacy"](around:${SEARCH_RADIUS_METERS},${centerLat},${centerLon});
+          );
+          out center;
+        `;
+
+        const url = 'https://overpass-api.de/api/interpreter?data=' +
+          encodeURIComponent(query);
+
+        fetch(url)
+          .then((response) => response.json())
+          .then((data) => {
+            if (!data.elements) return;
+
+            data.elements.forEach((el) => {
+              const tags = el.tags || {};
+              const name = tags.name || 'Medical store';
+
+              const lat = el.lat || (el.center && el.center.lat);
+              const lon = el.lon || (el.center && el.center.lon);
+              if (!lat || !lon) return;
+
+              const addressParts = [
+                tags['addr:housenumber'],
+                tags['addr:street'],
+                tags['addr:suburb'],
+                tags['addr:city'],
+              ].filter(Boolean);
+
+              const address = addressParts.join(', ');
+
+              const popupHtml = `
+                <strong>${name}</strong><br/>
+                ${address || 'Address not available'}
+              `;
+
+              L.marker([lat, lon])
+                .addTo(map)
+                .bindPopup(popupHtml);
+            });
+          })
+          .catch((err) => {
+            console.error('Overpass error', err);
+          });
+      }
+
+      // Try to use browser geolocation for a better center.
+      window.addEventListener('load', () => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              initMap(pos.coords.latitude, pos.coords.longitude);
+            },
+            (err) => {
+              console.warn('Geolocation error', err);
+              initMap(); // fallback
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+          );
+        } else {
+          initMap();
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="map"></div>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:carelink/core/constants/app_colors.dart';
-import 'package:carelink/core/services/auth_service.dart';
-import 'package:carelink/core/services/doctor_service.dart';
+import 'package:pulsecare/core/constants/app_colors.dart';
+import 'package:pulsecare/core/services/auth_service.dart';
+import 'package:pulsecare/core/services/doctor_service.dart';
 
 class AvailabilityScreen extends StatefulWidget {
   const AvailabilityScreen({super.key});
@@ -120,108 +120,193 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manage Availability'),
-        actions: [
-          _isLoading
-              ? const SizedBox(
-                  width: 48,
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+      backgroundColor: AppColors.background,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1F2937),
+              Color(0xFF111827),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Manage availability',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Control when patients can book you.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                )
-              : IconButton(
-                  icon: const Icon(Icons.save),
-                  onPressed: _saveAvailability,
+                    _isLoading
+                        ? const SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Center(
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.save, color: Colors.white),
+                            onPressed: _saveAvailability,
+                          ),
+                  ],
                 ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Set your weekly availability',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Patients will only be able to book appointments during these times.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Working Hours
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Default Working Hours',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildTimeSelector(
-                                'Start Time',
-                                _startTime,
-                                () => _selectTime(context, true),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildTimeSelector(
-                                'End Time',
-                                _endTime,
-                                () => _selectTime(context, false),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Days Selection
-                  const Text(
-                    'Working Days',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  ..._days.entries.map((entry) {
-                    return CheckboxListTile(
-                      title: Text(entry.key),
-                      value: entry.value,
-                      activeColor: AppColors.primary,
-                      onChanged: (bool? value) {
-                        setState(() {
-                          _days[entry.key] = value ?? false;
-                        });
-                      },
-                    );
-                  }).toList(),
-                ],
               ),
-            ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(32),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Set your weekly availability',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Patients will only be able to book appointments during these times.',
+                                style: TextStyle(color: AppColors.textSecondary),
+                              ),
+                              const SizedBox(height: 24),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withOpacity(0.04),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Default working hours',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: _buildTimeSelector(
+                                            'Start time',
+                                            _startTime,
+                                            () => _selectTime(context, true),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: _buildTimeSelector(
+                                            'End time',
+                                            _endTime,
+                                            () => _selectTime(context, false),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              const Text(
+                                'Working days',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Card(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Column(
+                                  children: _days.entries.map((entry) {
+                                    return SwitchListTile(
+                                      title: Text(entry.key),
+                                      value: entry.value,
+                                      activeColor: AppColors.primary,
+                                      onChanged: (bool? value) {
+                                        setState(() {
+                                          _days[entry.key] = value ?? false;
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -232,8 +317,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+          color: AppColors.surface,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:carelink/core/constants/app_colors.dart';
-import 'package:carelink/core/services/auth_service.dart';
-import 'package:carelink/features/auth/widgets/auth_text_field.dart';
+import 'package:pulsecare/core/constants/app_colors.dart';
+import 'package:pulsecare/features/auth/widgets/auth_text_field.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -14,7 +13,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _authService = AuthService();
   bool _isLoading = false;
 
   @override
@@ -25,35 +23,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _resetPassword() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      await _authService.updatePassword(_passwordController.text);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password reset successfully. Please login.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    // This screen is no longer used in the new backend OTP flow.
+    // It is kept for backwards compatibility but does nothing.
+    if (mounted) {
+      Navigator.of(context).pop();
     }
   }
 

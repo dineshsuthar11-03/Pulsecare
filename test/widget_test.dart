@@ -7,15 +7,15 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:carelink/main.dart';
+import 'package:pulsecare/main.dart';
 
 void main() {
-  testWidgets('CareLink app smoke test', (WidgetTester tester) async {
+  testWidgets('Pulsecare app smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const CareLink());
+    await tester.pumpWidget(const Pulsecare());
 
     // Verify that the app loads
-    expect(find.text('CareLink'), findsWidgets);
+    expect(find.text('Pulsecare'), findsWidgets);
     expect(find.text('Symptom Checker'), findsOneWidget);
     expect(find.text('Medicine Guide'), findsOneWidget);
   });

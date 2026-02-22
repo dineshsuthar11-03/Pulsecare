@@ -1,6 +1,6 @@
 {
-    "name": "carelink",
-    "short_name": "carelink",
+    "name": "Pulsecare",
+    "short_name": "Pulsecare",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:carelink/core/constants/app_colors.dart';
-import 'package:carelink/core/constants/app_strings.dart';
-import 'package:carelink/services/gemini_service.dart';
+import 'package:pulsecare/services/gemini_service.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'dart:ui';
 
 class SymptomInputScreen extends StatefulWidget {
   const SymptomInputScreen({super.key});
@@ -17,35 +17,30 @@ class _SymptomInputScreenState extends State<SymptomInputScreen> {
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
   String? _error;
+  String _selectedLanguage = 'English';
 
   @override
   void initState() {
     super.initState();
-    _initializeChat();
+    _addInitialMessage();
   }
 
-  Future<void> _initializeChat() async {
-    try {
-      await _geminiService.initialize();
-      setState(() {
-        _messages.add(
-          ChatMessage(
-            text: AppStrings.symptomInputPrompt,
-            isUser: false,
-            timestamp: DateTime.now(),
-          ),
-        );
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
-    }
+  void _addInitialMessage() {
+    setState(() {
+      _messages.add(
+        ChatMessage(
+          text:
+              "Hello! I'm your PulseCare AI Assistant. Please describe your symptoms in detail (duration, severity, etc.), and I'll help you understand your situation.",
+          isUser: false,
+          timestamp: DateTime.now(),
+        ),
+      );
+    });
   }
 
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
-    if (message.isEmpty) return;
+    if (message.isEmpty || _isLoading) return;
 
     setState(() {
       _messages.add(
@@ -65,30 +60,30 @@ class _SymptomInputScreenState extends State<SymptomInputScreen> {
         isUser: false,
         timestamp: DateTime.now(),
       );
-
-      setState(() {
-        _messages.add(aiMessage);
-      });
+      setState(() => _messages.add(aiMessage));
 
       await for (final chunk in _geminiService.sendMessageStream(message)) {
         fullResponse += chunk;
-        setState(() {
-          _messages[_messages.length - 1] = aiMessage.copyWith(
-            text: fullResponse,
-          );
-        });
-        _scrollToBottom();
+        if (mounted) {
+          setState(() {
+            _messages[_messages.length - 1] = ChatMessage(
+              text: fullResponse,
+              isUser: false,
+              timestamp: DateTime.now(),
+            );
+          });
+          _scrollToBottom();
+        }
       }
-
-      setState(() {
-        _isLoading = false;
-      });
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-        _messages.removeLast();
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -105,153 +100,228 @@ class _SymptomInputScreenState extends State<SymptomInputScreen> {
   }
 
   @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(AppStrings.symptomCheckerTitle),
+        title: const Text(
+          'AI Health Companion',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.indigo.withOpacity(0.8)),
+          ),
+        ),
         actions: [
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedLanguage,
+              icon: const Icon(Icons.language, color: Colors.white),
+              dropdownColor: Colors.indigo,
+              items: const [
+                'English',
+                'Hindi',
+                'Spanish',
+                'French',
+                'German',
+                'Tamil',
+              ].map((lang) {
+                return DropdownMenuItem<String>(
+                  value: lang,
+                  child: Text(
+                    lang,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedLanguage = value);
+                _geminiService.setPreferredLanguage(value);
+              },
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Start New Conversation',
             onPressed: () {
               _geminiService.resetConversation();
               setState(() {
                 _messages.clear();
-                _error = null;
+                _addInitialMessage();
               });
-              _initializeChat();
             },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Disclaimer Banner
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: AppColors.warning.withOpacity(0.1),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: AppColors.warning, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    AppStrings.shortDisclaimer,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-              ],
-            ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.indigo.shade50, Colors.white],
           ),
-
-          // Error Banner
-          if (_error != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              color: AppColors.error.withOpacity(0.1),
-              child: Row(
-                children: [
-                  Icon(Icons.error_outline, color: AppColors.error, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColors.error),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 16),
-                    onPressed: () => setState(() => _error = null),
-                  ),
-                ],
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.only(
+                  top: 120,
+                  left: 16,
+                  right: 16,
+                  bottom: 20,
+                ),
+                itemCount: _messages.length,
+                itemBuilder: (context, index) =>
+                    _buildChatBubble(_messages[index]),
               ),
             ),
-
-          // Chat Messages
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return ChatBubble(message: message);
-              },
-            ),
-          ),
-
-          // Loading Indicator
-          if (_isLoading)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    AppStrings.loadingAnalyzing,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-
-          const SizedBox(height: 8),
-
-          // Input Field
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
+            if (_error != null)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: AppStrings.symptomInputHint,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
                       ),
-                      maxLines: null,
-                      textCapitalization: TextCapitalization.sentences,
-                      onSubmitted: (_) => _sendMessage(),
+                    ),
+                  ],
+                ),
+              ),
+            _buildInputArea(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatBubble(ChatMessage message) {
+    bool isUser = message.isUser;
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.8,
+        ),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isUser ? Colors.indigo : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: Radius.circular(isUser ? 20 : 0),
+            bottomRight: Radius.circular(isUser ? 0 : 20),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            isUser
+                ? Text(
+                    message.text,
+                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                  )
+                : MarkdownBody(
+                    data: message.text,
+                    styleSheet: MarkdownStyleSheet(
+                      p: const TextStyle(fontSize: 15, height: 1.5),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  FloatingActionButton(
-                    onPressed: _isLoading ? null : _sendMessage,
-                    child: const Icon(Icons.send),
-                  ),
-                ],
+            const SizedBox(height: 4),
+            Text(
+              "${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}",
+              style: TextStyle(
+                color: isUser ? Colors.indigoAccent.shade100 : Colors.grey,
+                fontSize: 10,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputArea() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
           ),
         ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                decoration: InputDecoration(
+                  hintText: 'Describe your symptoms...',
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(25),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 15,
+                  ),
+                ),
+                maxLines: null,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+            ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: _sendMessage,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
+                  color: Colors.indigo,
+                  shape: BoxShape.circle,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.send, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -267,70 +337,4 @@ class ChatMessage {
     required this.isUser,
     required this.timestamp,
   });
-
-  ChatMessage copyWith({String? text, bool? isUser, DateTime? timestamp}) {
-    return ChatMessage(
-      text: text ?? this.text,
-      isUser: isUser ?? this.isUser,
-      timestamp: timestamp ?? this.timestamp,
-    );
-  }
-}
-
-class ChatBubble extends StatelessWidget {
-  final ChatMessage message;
-
-  const ChatBubble({super.key, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: message.isUser
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!message.isUser) ...[
-            CircleAvatar(
-              backgroundColor: AppColors.primary,
-              child: const Icon(
-                Icons.health_and_safety,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: message.isUser
-                    ? AppColors.primary
-                    : AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                message.text,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: message.isUser
-                      ? AppColors.textOnPrimary
-                      : AppColors.textPrimary,
-                ),
-              ),
-            ),
-          ),
-          if (message.isUser) ...[
-            const SizedBox(width: 8),
-            CircleAvatar(
-              backgroundColor: AppColors.accent,
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }

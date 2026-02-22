@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:carelink/core/constants/app_colors.dart';
-import 'package:carelink/core/services/consultation_service.dart';
-import 'package:carelink/features/consultation/widgets/booking_calendar.dart';
+import 'package:pulsecare/core/constants/app_colors.dart';
+import 'package:pulsecare/core/services/consultation_backend_service.dart';
+import 'package:pulsecare/core/services/consultation_service.dart';
+import 'package:pulsecare/features/consultation/widgets/booking_calendar.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
 class DoctorDetailScreen extends StatefulWidget {
@@ -17,6 +19,17 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   bool _isBooking = false;
+  DateTime? _pendingScheduledAt;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,13 +69,27 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          widget.doctor['users']?['full_name'] ?? 'Doctor',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.doctor['users']?['full_name'] ?? 'Doctor',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (widget.doctor['is_verified'] == true) ...[
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.verified,
+                                color: Colors.greenAccent,
+                                size: 22,
+                              ),
+                            ],
+                          ],
                         ),
                         Text(
                           widget.doctor['specialization'] ?? 'Specialist',
@@ -255,24 +282,129 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
   Future<void> _handleBooking() async {
     setState(() => _isBooking = true);
 
+    final scheduledAt = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
+
+    _pendingScheduledAt = scheduledAt;
+
+    // Fake payment gateway: show a simple confirmation dialog instead of
+    // calling a real payment provider. This keeps the flow similar while
+    // you test the rest of the app.
+    if (!mounted) {
+      setState(() => _isBooking = false);
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final fee = (widget.doctor['consultation_fee'] ?? 500).toDouble();
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Confirm Payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pay ₹$fee for your consultation with Dr. '
+                "${widget.doctor['users']?['full_name'] ?? ''}.",
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'This is a test payment screen. No real money is charged.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Pay Now'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _createConsultationAfterPayment();
+    } else {
+      if (mounted) {
+        setState(() => _isBooking = false);
+      }
+    }
+  }
+
+  Future<void> _createConsultationAfterPayment() async {
+    if (_pendingScheduledAt == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not complete booking: missing schedule info'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        setState(() => _isBooking = false);
+      }
+      return;
+    }
+
     try {
-      final scheduledAt = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
+      final fee = (widget.doctor['consultation_fee'] ?? 500).toDouble();
+      final scheduledAt = _pendingScheduledAt!;
 
       final service = ConsultationService();
-      await service.createConsultation(
+      final consultation = await service.createConsultation(
         doctorId: widget.doctor['id'],
         scheduledAt: scheduledAt,
-        fee: (widget.doctor['consultation_fee'] ?? 500).toDouble(),
+        fee: fee,
         symptoms: 'Scheduled Consultation',
       );
 
+      // Trigger backend email notification for patient and doctor
+      final user = Supabase.instance.client.auth.currentUser;
+      String? emailError;
+      if (user != null) {
+        final backend = ConsultationBackendService();
+        try {
+          await backend.sendScheduleEmail(
+            patientId: user.id,
+            doctorId: widget.doctor['id'],
+            scheduledAt: scheduledAt,
+            consultationId: consultation['id'] as String?,
+            roomCode: consultation['room_code'] as String?,
+          );
+        } catch (e) {
+          emailError = e.toString();
+        }
+      }
+
       if (mounted) {
+        if (emailError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Appointment booked, but email notification failed: $emailError',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
         _showSuccessDialog();
       }
     } catch (e) {
@@ -290,6 +422,9 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
       }
     }
   }
+
+  // The real payment callbacks have been removed in favor of a
+  // simple fake payment flow used during development.
 
   void _showSuccessDialog() {
     showDialog(
@@ -311,6 +446,16 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
               'Your appointment with Dr. ${widget.doctor['users']?['full_name']} is scheduled for ${DateFormat('MMM dd, hh:mm a').format(_selectedDate!)}',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Payment confirmed (test gateway)',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+              ),
             ),
             const SizedBox(height: 32),
             ElevatedButton(

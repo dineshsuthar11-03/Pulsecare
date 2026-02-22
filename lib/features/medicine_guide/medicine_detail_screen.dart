@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:carelink/core/constants/app_colors.dart';
-import 'package:carelink/core/constants/app_strings.dart';
-import 'package:carelink/data/models/medicine_model.dart';
-import 'package:carelink/services/openfda_service.dart';
+import 'package:pulsecare/core/constants/app_colors.dart';
+import 'package:pulsecare/core/constants/app_strings.dart';
+import 'package:pulsecare/core/services/medicine_backend_service.dart';
+import 'package:pulsecare/data/models/medicine_model.dart';
+import 'package:pulsecare/services/gemini_service.dart';
 
 class MedicineDetailScreen extends StatefulWidget {
   final MedicineModel medicine;
@@ -14,9 +15,13 @@ class MedicineDetailScreen extends StatefulWidget {
 }
 
 class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
-  final OpenFdaService _fdaService = OpenFdaService();
+  final MedicineBackendService _medicineService = MedicineBackendService();
+  final GeminiService _geminiService = GeminiService();
   List<MedicineModel> _alternatives = [];
   bool _loadingAlternatives = false;
+  bool _loadingAi = false;
+  String? _aiSummary;
+  String? _aiError;
 
   @override
   void initState() {
@@ -32,8 +37,9 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
     });
 
     try {
-      final alternatives = await _fdaService.getAlternativeMedicines(
+      final alternatives = await _medicineService.getAlternativeMedicines(
         widget.medicine.activeIngredients.first,
+        excludeId: widget.medicine.id,
       );
 
       // Filter out the current medicine
@@ -117,6 +123,11 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
             ),
 
             const SizedBox(height: 16),
+
+            // Groq AI Medicine Insights
+            _buildAiInsightsSection(context),
+
+            const SizedBox(height: 8),
 
             // Active Ingredients
             if (widget.medicine.activeIngredients.isNotEmpty)
@@ -354,6 +365,161 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildAiInsightsSection(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: AppColors.accentGradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.smart_toy_outlined,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Groq AI Medicine Insights',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Get a simple explanation of how this medicine is used and safety points to remember.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_aiError != null)
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _aiError!,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Colors.white),
+              ),
+            ),
+          if (_aiSummary != null)
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _aiSummary!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: _loadingAi ? null : _onAskAiPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.accentDark,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              icon: _loadingAi
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.bolt_outlined, size: 18),
+              label: Text(
+                _loadingAi ? 'Analyzing…' : 'Ask Groq AI',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onAskAiPressed() async {
+    setState(() {
+      _loadingAi = true;
+      _aiError = null;
+    });
+
+    try {
+      final summary = await _geminiService.analyzeMedicine(
+        name: widget.medicine.displayName,
+        activeIngredients: widget.medicine.activeIngredients,
+        purpose: widget.medicine.purpose,
+        warnings: widget.medicine.warnings.isNotEmpty
+            ? widget.medicine.warnings.take(3).join('\n')
+            : null,
+        dosageAndAdministration: widget.medicine.dosageAndAdministration,
+      );
+
+      if (mounted) {
+        setState(() {
+          _aiSummary = summary;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _aiError = 'Unable to load AI insights: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingAi = false;
+        });
+      }
+    }
   }
 
   Widget _buildAlternativesSection() {

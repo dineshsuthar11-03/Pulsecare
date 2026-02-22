@@ -84,7 +84,7 @@ class AuthService {
     try {
       await _supabase.auth.resetPasswordForEmail(
         email,
-        redirectTo: 'io.supabase.carelink://reset-password/',
+        redirectTo: 'io.supabase.pulsecare://reset-password/',
       );
     } on AuthException catch (e) {
       throw _handleAuthException(e);

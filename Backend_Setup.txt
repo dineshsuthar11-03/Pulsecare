@@ -1,0 +1,78 @@
+# PulseCare Backend Documentation
+
+## Current Backend State
+The project currently uses **Supabase** as its "Backend as a Service" (BaaS).
+- **Database**: PostgreSQL (hosted on Supabase).
+- **Authentication**: Supabase Auth (managed via `AuthService` in Flutter).
+- **Running on**: Supabase Cloud environment.
+- **Connection**: Managed via the `supabase_flutter` package and credentials in `.env`.
+
+---
+
+## Moving to Node.js / Express
+Since you want to implement a **Node/Express** backend while keeping the existing database connected, follow these steps:
+
+### 1. Create the Backend Directory
+It is recommended to create a separate folder at the root level of your project (same level as `lib` and `android`).
+```bash
+mkdir backend
+cd backend
+npm init -y
+npm install express pg cors dotenv jsonwebtoken
+```
+
+### 2. Connect to the Existing Database
+You can connect to your Supabase PostgreSQL database directly using the `pg` (node-postgres) package.
+- Find your **Database Connection String** in the Supabase Dashboard:
+  `Settings -> Database -> Connection string -> Node.js`
+
+### 3. Setup Example (backend/index.js)
+```javascript
+const express = require('express');
+const { Pool } = require('pg');
+const dotenv = require('dotenv');
+
+dotenv.config();
+const app = express();
+app.use(express.json());
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL, // From Supabase
+  ssl: { rejectUnauthorized: false }
+});
+
+app.get('/api/doctors', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM public.doctors');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(3000, () => console.log('Backend running on port 3000'));
+```
+
+### 4. Running the Backend
+1. Create a `.env` file inside the `backend` folder.
+2. Add `DATABASE_URL=your_supabase_postgresql_url`.
+3. Run using `node index.js` or `nodemon index.js`.
+
+---
+
+## Why use Node/Express with Supabase?
+- **Custom Logic**: If you need complex processing that standard Supabase RLS (Row Level Security) or Functions can't handle.
+- **Integration**: Connecting to 3rd party services like specialized payment gateways or custom AI pipelines.
+- **Control**: More control over the API lifecycle and middleware.
+
+## Recommended Structure
+```
+Pulsecare/
+├── lib/               # Flutter Logic
+├── backend/           # Node.js Server (Create this)
+│   ├── routes/
+│   ├── controllers/
+│   └── index.js
+├── supabase/          # Database Migrations
+└── .env               # Project Credentials
+```

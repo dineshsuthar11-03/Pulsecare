@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:carelink/core/constants/app_colors.dart';
-import 'package:carelink/core/constants/app_strings.dart';
-import 'package:carelink/services/openfda_service.dart';
-import 'package:carelink/data/models/medicine_model.dart';
-import 'package:carelink/features/medicine_guide/medicine_detail_screen.dart';
+import 'package:pulsecare/core/constants/app_colors.dart';
+import 'package:pulsecare/core/constants/app_strings.dart';
+import 'package:pulsecare/core/services/medicine_backend_service.dart';
+import 'package:pulsecare/data/models/medicine_model.dart';
+import 'package:pulsecare/features/medicine_guide/medicine_detail_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class MedicineSearchScreen extends StatefulWidget {
@@ -15,7 +15,7 @@ class MedicineSearchScreen extends StatefulWidget {
 
 class _MedicineSearchScreenState extends State<MedicineSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final OpenFdaService _fdaService = OpenFdaService();
+  final MedicineBackendService _medicineService = MedicineBackendService();
   List<MedicineModel> _searchResults = [];
   bool _isLoading = false;
   String? _error;
@@ -32,7 +32,7 @@ class _MedicineSearchScreenState extends State<MedicineSearchScreen> {
     });
 
     try {
-      final results = await _fdaService.searchMedicines(query);
+      final results = await _medicineService.searchMedicines(query);
       setState(() {
         _searchResults = results;
         _isLoading = false;
@@ -55,100 +55,170 @@ class _MedicineSearchScreenState extends State<MedicineSearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.medicineGuideTitle)),
-      body: Column(
-        children: [
-          // Search Bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppColors.surface,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: AppStrings.medicineSearchHint,
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                  _searchResults = [];
-                                  _hasSearched = false;
-                                });
-                              },
-                            )
-                          : null,
-                    ),
-                    onSubmitted: (_) => _searchMedicines(),
-                    onChanged: (value) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _searchMedicines,
-                  child: const Text(AppStrings.searchNow),
-                ),
-              ],
-            ),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        title: const Text(AppStrings.medicineGuideTitle),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.primaryDark, AppColors.primary, AppColors.background],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-
-          // Error Banner
-          if (_error != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              color: AppColors.error.withOpacity(0.1),
-              child: Row(
-                children: [
-                  Icon(Icons.error_outline, color: AppColors.error, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColors.error),
-                    ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shadow,
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 16),
-                    onPressed: () => setState(() => _error = null),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: AppStrings.medicineSearchHint,
+                            prefixIcon: const Icon(Icons.search),
+                            border: InputBorder.none,
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {
+                                        _searchResults = [];
+                                        _hasSearched = false;
+                                      });
+                                    },
+                                  )
+                                : null,
+                          ),
+                          onSubmitted: (_) => _searchMedicines(),
+                          onChanged: (value) => setState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _searchMedicines,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        child: const Text(AppStrings.searchNow),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
 
-          // Results Section
-          Expanded(
-            child: _isLoading
-                ? _buildLoadingShimmer()
-                : _hasSearched
-                ? _searchResults.isEmpty
-                      ? _buildEmptyState()
-                      : _buildResultsList()
-                : _buildInitialState(),
-          ),
-
-          // OpenFDA Attribution
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: AppColors.surfaceVariant,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.info_outline, size: 16),
-                const SizedBox(width: 8),
-                Text(
-                  'Data provided by openFDA',
-                  style: Theme.of(context).textTheme.bodySmall,
+              // Results Section
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  padding: const EdgeInsets.only(top: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shadow,
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      if (_error != null)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline,
+                                  color: AppColors.error, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _error!,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: AppColors.error),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 16),
+                                onPressed: () =>
+                                    setState(() => _error = null),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: _isLoading
+                            ? _buildLoadingShimmer()
+                            : _hasSearched
+                                ? _searchResults.isEmpty
+                                    ? _buildEmptyState()
+                                    : _buildResultsList()
+                                : _buildInitialState(),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(24),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.info_outline, size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Data from Indian medicine dataset · AI summary via Groq',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -249,14 +319,17 @@ class _MedicineSearchScreenState extends State<MedicineSearchScreen> {
         final medicine = _searchResults[index];
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: ListTile(
             leading: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.medication, color: AppColors.primary),
+              child: const Icon(Icons.medication, color: Colors.white),
             ),
             title: Text(
               medicine.displayName,

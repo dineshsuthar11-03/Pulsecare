@@ -18,13 +18,15 @@ class DoctorService {
     }
   }
 
-  // Update doctor profile
+  // Update doctor profile (including KYC-style fields)
   Future<void> updateDoctorProfile({
     required String id,
     String? specialization,
     int? experienceYears,
     double? consultationFee,
     String? bio,
+    String? medicalLicense,
+    String? clinicName,
     Map<String, dynamic>? availability,
   }) async {
     try {
@@ -33,6 +35,8 @@ class DoctorService {
       if (experienceYears != null) data['experience_years'] = experienceYears;
       if (consultationFee != null) data['consultation_fee'] = consultationFee;
       if (bio != null) data['about'] = bio; // matching about column in schema
+      if (medicalLicense != null) data['medical_license'] = medicalLicense;
+      if (clinicName != null) data['clinic_name'] = clinicName;
       if (availability != null) data['availability'] = availability;
 
       await _supabase.from('doctors').update(data).eq('id', id);

@@ -1,4 +1,4 @@
-# CareLink - Telemedicine Platform
+# Pulsecare - Telemedicine Platform
 
 A modern telemedicine application built with Flutter and Supabase.
 

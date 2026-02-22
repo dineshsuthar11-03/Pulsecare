@@ -1,0 +1,462 @@
+{
+    "symptoms": [
+        {
+            "name": "Fever",
+            "risk_level": "Medium",
+            "description": "Temperature above 100.4°F (38°C).",
+            "possible_conditions": [
+                "Influenza",
+                "COVID-19",
+                "Malaria",
+                "Typhoid",
+                "Pneumonia"
+            ],
+            "specialist": "General Physician",
+            "tests": [
+                "CBC",
+                "Malaria RDT",
+                "COVID-19 PCR",
+                "Blood Culture"
+            ],
+            "otc": [
+                "Paracetamol (500mg every 6h)",
+                "Ibuprofen (400mg with food)"
+            ]
+        },
+        {
+            "name": "Chest Pain",
+            "risk_level": "High",
+            "description": "Pain or discomfort in the chest area, possibly radiating to arms or jaw.",
+            "possible_conditions": [
+                "Angina",
+                "Heart Attack (Myocardial Infarction)",
+                "Pericarditis",
+                "GERD",
+                "Pulmonary Embolism"
+            ],
+            "specialist": "Cardiologist (Emergency)",
+            "tests": [
+                "ECG",
+                "Troponin I/T blood test",
+                "Chest X-Ray",
+                "Echocardiogram"
+            ],
+            "otc": [
+                "Aspirin 325mg (if cardiac cause suspected) — CALL EMERGENCY SERVICES FIRST"
+            ]
+        },
+        {
+            "name": "Shortness of breath",
+            "risk_level": "High",
+            "description": "Difficulty breathing or feeling like you can't get enough air.",
+            "possible_conditions": [
+                "Asthma",
+                "COPD",
+                "Pulmonary Embolism",
+                "Pneumonia",
+                "Heart Failure"
+            ],
+            "specialist": "Pulmonologist / Emergency Care",
+            "tests": [
+                "Chest X-Ray",
+                "Spirometry",
+                "ABG (Arterial Blood Gas)",
+                "CT Pulmonary Angiography"
+            ],
+            "otc": [
+                "Seek immediate medical care — no safe OTC for acute breathlessness"
+            ]
+        },
+        {
+            "name": "Cough",
+            "risk_level": "Low",
+            "description": "A sudden, forceful hack to clear the airways.",
+            "possible_conditions": [
+                "Common Cold",
+                "Bronchitis",
+                "Sinusitis",
+                "GERD",
+                "COVID-19"
+            ],
+            "specialist": "General Physician / ENT",
+            "tests": [
+                "Chest X-Ray",
+                "Sputum Culture",
+                "COVID-19 test"
+            ],
+            "otc": [
+                "Dextromethorphan (cough suppressant)",
+                "Guaifenesin (expectorant)",
+                "Honey + warm water"
+            ]
+        },
+        {
+            "name": "Headache",
+            "risk_level": "Low",
+            "description": "Pain in any region of the head.",
+            "possible_conditions": [
+                "Tension Headache",
+                "Migraine",
+                "Sinusitis",
+                "Hypertension",
+                "Meningitis"
+            ],
+            "specialist": "Neurologist / General Physician",
+            "tests": [
+                "Blood Pressure check",
+                "CT Scan (if severe)",
+                "Vision check"
+            ],
+            "otc": [
+                "Paracetamol (500mg)",
+                "Ibuprofen (400mg)",
+                "Rest in a dark quiet room"
+            ]
+        },
+        {
+            "name": "Nausea",
+            "risk_level": "Medium",
+            "description": "Feeling of sickness with an inclination to vomit.",
+            "possible_conditions": [
+                "Gastroenteritis",
+                "Food Poisoning",
+                "Migraine",
+                "Pregnancy",
+                "Appendicitis"
+            ],
+            "specialist": "Gastroenterologist / General Physician",
+            "tests": [
+                "Stool Culture",
+                "Urine Pregnancy Test",
+                "Abdominal Ultrasound"
+            ],
+            "otc": [
+                "Domperidone (10mg before meals)",
+                "ORS solution for hydration",
+                "Ginger tea"
+            ]
+        },
+        {
+            "name": "Fatigue",
+            "risk_level": "Low",
+            "description": "Extreme tiredness resulting from mental or physical exertion.",
+            "possible_conditions": [
+                "Anemia",
+                "Hypothyroidism",
+                "Diabetes",
+                "Depression",
+                "Chronic Fatigue Syndrome"
+            ],
+            "specialist": "General Physician / Endocrinologist",
+            "tests": [
+                "CBC",
+                "Thyroid Function Tests (TSH, T3, T4)",
+                "Fasting Blood Glucose",
+                "Vitamin D / B12"
+            ],
+            "otc": [
+                "Iron supplements (if anemic)",
+                "Vitamin B12",
+                "Adequate rest and hydration"
+            ]
+        },
+        {
+            "name": "Dizziness",
+            "risk_level": "Medium",
+            "description": "Sensation of spinning or feeling faint.",
+            "possible_conditions": [
+                "BPPV (Benign positional vertigo)",
+                "Anemia",
+                "Hypotension",
+                "Inner Ear Infection",
+                "Hypoglycemia"
+            ],
+            "specialist": "ENT / Neurologist",
+            "tests": [
+                "Blood Pressure (lying/standing)",
+                "CBC",
+                "Blood Glucose",
+                "MRI (if recurring)"
+            ],
+            "otc": [
+                "Meclizine (antivertigo)",
+                "Oral Rehydration Salts",
+                "Rest in a safe position"
+            ]
+        },
+        {
+            "name": "Sore throat",
+            "risk_level": "Low",
+            "description": "Pain, scratchiness or irritation of the throat.",
+            "possible_conditions": [
+                "Streptococcal Pharyngitis",
+                "Tonsillitis",
+                "Common Cold",
+                "COVID-19",
+                "Infectious Mononucleosis"
+            ],
+            "specialist": "ENT / General Physician",
+            "tests": [
+                "Rapid Strep Test",
+                "Throat Swab Culture",
+                "COVID-19 test"
+            ],
+            "otc": [
+                "Lozenges (Benzocaine)",
+                "Salt water gargle",
+                "Ibuprofen (400mg)"
+            ]
+        },
+        {
+            "name": "Loss of taste or smell",
+            "risk_level": "Medium",
+            "description": "Partial or total loss of the ability to taste or smell.",
+            "possible_conditions": [
+                "COVID-19",
+                "Sinusitis",
+                "Zinc Deficiency",
+                "Nasal Polyps"
+            ],
+            "specialist": "ENT / General Physician",
+            "tests": [
+                "COVID-19 PCR",
+                "Nasal Endoscopy",
+                "Zinc Level Serum"
+            ],
+            "otc": [
+                "Zinc supplements (if deficient)",
+                "Nasal saline rinse"
+            ]
+        },
+        {
+            "name": "Persistent Vomiting",
+            "risk_level": "High",
+            "description": "Inability to keep any fluids or food down.",
+            "possible_conditions": [
+                "Gastroenteritis",
+                "Appendicitis",
+                "Bowel Obstruction",
+                "Severe Migraine",
+                "Diabetic Ketoacidosis"
+            ],
+            "specialist": "Gastroenterologist / Emergency Care",
+            "tests": [
+                "Abdominal X-Ray",
+                "Serum Electrolytes",
+                "Blood Glucose",
+                "Abdominal CT"
+            ],
+            "otc": [
+                "Ondansetron (4mg) — seek medical care urgently",
+                "IV fluids if dehydrated"
+            ]
+        },
+        {
+            "name": "Confusion",
+            "risk_level": "High",
+            "description": "Disorientation or lack of clear thinking.",
+            "possible_conditions": [
+                "Meningitis",
+                "Encephalitis",
+                "Stroke",
+                "Severe Hypoglycemia",
+                "Sepsis"
+            ],
+            "specialist": "Neurologist / Emergency Care",
+            "tests": [
+                "CT/MRI Brain",
+                "Blood Glucose STAT",
+                "Lumbar Puncture",
+                "Blood Culture"
+            ],
+            "otc": [
+                "CALL EMERGENCY SERVICES IMMEDIATELY — do not self-medicate"
+            ]
+        },
+        {
+            "name": "Severe Abdominal Pain",
+            "risk_level": "High",
+            "description": "Intense pain in the stomach or gut area.",
+            "possible_conditions": [
+                "Appendicitis",
+                "Perforated Ulcer",
+                "Pancreatitis",
+                "Kidney Stones",
+                "Ectopic Pregnancy"
+            ],
+            "specialist": "General Surgeon / Emergency Care",
+            "tests": [
+                "Abdominal Ultrasound",
+                "CT Abdomen",
+                "Serum Amylase/Lipase",
+                "Urine Analysis"
+            ],
+            "otc": [
+                "Do NOT take painkillers before seeing a doctor — may mask symptoms"
+            ]
+        },
+        {
+            "name": "Back Pain",
+            "risk_level": "Medium",
+            "description": "Pain or discomfort in the upper, middle, or lower back.",
+            "possible_conditions": [
+                "Muscle Strain",
+                "Herniated Disc",
+                "Kidney Infection",
+                "Osteoporosis",
+                "Spondylitis"
+            ],
+            "specialist": "Orthopedic / Physiotherapist",
+            "tests": [
+                "X-Ray Spine",
+                "MRI Spine",
+                "Urine Analysis (to rule out kidney)"
+            ],
+            "otc": [
+                "Ibuprofen (400mg)",
+                "Muscle relaxant (Cyclobenzaprine)",
+                "Heat/cold compress"
+            ]
+        },
+        {
+            "name": "Joint Pain",
+            "risk_level": "Medium",
+            "description": "Pain, swelling, or stiffness in one or more joints.",
+            "possible_conditions": [
+                "Osteoarthritis",
+                "Rheumatoid Arthritis",
+                "Gout",
+                "Lupus",
+                "Viral Arthritis"
+            ],
+            "specialist": "Rheumatologist / Orthopedic",
+            "tests": [
+                "Uric Acid",
+                "Rheumatoid Factor",
+                "ANA Test",
+                "Joint X-Ray"
+            ],
+            "otc": [
+                "Ibuprofen (400mg with food)",
+                "Topical Diclofenac gel",
+                "Rest the joint"
+            ]
+        },
+        {
+            "name": "Skin Rash",
+            "risk_level": "Low",
+            "description": "Change in the skin's color, texture, or appearance.",
+            "possible_conditions": [
+                "Allergic Reaction",
+                "Eczema",
+                "Psoriasis",
+                "Chickenpox",
+                "Measles"
+            ],
+            "specialist": "Dermatologist",
+            "tests": [
+                "Skin Patch Test",
+                "KOH preparation (fungal)",
+                "Complete Blood Count"
+            ],
+            "otc": [
+                "Antihistamine (Cetirizine 10mg)",
+                "1% Hydrocortisone cream",
+                "Calamine lotion"
+            ]
+        },
+        {
+            "name": "Palpitations",
+            "risk_level": "Medium",
+            "description": "Awareness of irregular, fast, or strong heartbeats.",
+            "possible_conditions": [
+                "Atrial Fibrillation",
+                "Anxiety",
+                "Hyperthyroidism",
+                "Anemia",
+                "Ventricular Tachycardia"
+            ],
+            "specialist": "Cardiologist",
+            "tests": [
+                "ECG",
+                "Holter Monitor",
+                "Thyroid Function Tests",
+                "CBC"
+            ],
+            "otc": [
+                "Avoid caffeine, alcohol. See a doctor if frequent or with chest pain"
+            ]
+        },
+        {
+            "name": "Frequent Urination",
+            "risk_level": "Medium",
+            "description": "Need to urinate more often than usual.",
+            "possible_conditions": [
+                "Urinary Tract Infection (UTI)",
+                "Diabetes Mellitus",
+                "Diabetes Insipidus",
+                "Prostate Enlargement",
+                "Overactive Bladder"
+            ],
+            "specialist": "Urologist / Endocrinologist",
+            "tests": [
+                "Urine Analysis",
+                "Urine Culture",
+                "Blood Glucose",
+                "Prostate-Specific Antigen (PSA)"
+            ],
+            "otc": [
+                "Cranberry extract (for UTI prevention)",
+                "Increase water intake",
+                "Avoid caffeine"
+            ]
+        },
+        {
+            "name": "Swelling",
+            "risk_level": "Medium",
+            "description": "Abnormal enlargement of a body part due to fluid buildup.",
+            "possible_conditions": [
+                "Deep Vein Thrombosis",
+                "Heart Failure",
+                "Kidney Disease",
+                "Liver Cirrhosis",
+                "Lymphedema"
+            ],
+            "specialist": "Cardiologist / Nephrologist",
+            "tests": [
+                "Doppler Ultrasound",
+                "Echocardiogram",
+                "Kidney Function Tests",
+                "Liver Function Tests"
+            ],
+            "otc": [
+                "Elevation of limb",
+                "Compression stockings (medical grade)",
+                "Reduce salt intake"
+            ]
+        },
+        {
+            "name": "Weight Loss",
+            "risk_level": "High",
+            "description": "Unintentional loss of body weight over a short period.",
+            "possible_conditions": [
+                "Diabetes Mellitus",
+                "Hyperthyroidism",
+                "Cancer",
+                "Tuberculosis",
+                "HIV/AIDS"
+            ],
+            "specialist": "Endocrinologist / Oncologist",
+            "tests": [
+                "Fasting Blood Glucose",
+                "Thyroid Panel",
+                "Chest X-Ray",
+                "CBC & ESR",
+                "HIV test"
+            ],
+            "otc": [
+                "Nutritional supplements — consult a doctor urgently for unintentional weight loss"
+            ]
+        }
+    ]
+}

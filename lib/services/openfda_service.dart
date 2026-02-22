@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:carelink/core/constants/api_constants.dart';
-import 'package:carelink/data/models/medicine_model.dart';
+import 'package:pulsecare/core/constants/api_constants.dart';
+import 'package:pulsecare/data/models/medicine_model.dart';
 
 class OpenFdaService {
   Future<List<MedicineModel>> searchMedicines(String query) async {

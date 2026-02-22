@@ -71,6 +71,11 @@ create table if not exists public.patients (
   date_of_birth date,
   gender text,
   medical_history text[],
+  allergies text[],
+  chronic_conditions text[],
+  current_medications text[],
+  surgeries text[],
+  family_history text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -104,6 +109,7 @@ create table if not exists public.consultations (
   status text default 'scheduled' check (status in ('scheduled', 'ongoing', 'completed', 'cancelled')),
   fee numeric not null,
   symptoms text,
+  room_code text,
   prescription text,
   notes text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -179,3 +185,33 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- 6. Consultation reviews (patient feedback for doctors)
+create table if not exists public.consultation_reviews (
+  id uuid default uuid_generate_v4() primary key,
+  consultation_id uuid references public.consultations(id) on delete cascade not null,
+  doctor_id uuid references public.doctors(id) not null,
+  patient_id uuid references public.patients(id) not null,
+  rating integer not null check (rating >= 1 and rating <= 5),
+  comment text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.consultation_reviews enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Patients can insert own reviews') then
+    create policy "Patients can insert own reviews" on public.consultation_reviews
+      for insert with check (auth.uid() = patient_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'Doctors can view own reviews') then
+    create policy "Doctors can view own reviews" on public.consultation_reviews
+      for select using (auth.uid() = doctor_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'Patients can view own reviews') then
+    create policy "Patients can view own reviews" on public.consultation_reviews
+      for select using (auth.uid() = patient_id);
+  end if;
+end
+$$;

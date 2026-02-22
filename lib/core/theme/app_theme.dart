@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:carelink/core/constants/app_colors.dart';
+import 'package:pulsecare/core/constants/app_colors.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {

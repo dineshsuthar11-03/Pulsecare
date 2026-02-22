@@ -4,7 +4,7 @@ class ConsultationService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   // Create a new consultation
-  Future<void> createConsultation({
+  Future<Map<String, dynamic>> createConsultation({
     required String doctorId,
     required DateTime scheduledAt,
     required double fee,
@@ -14,14 +14,25 @@ class ConsultationService {
       final user = _supabase.auth.currentUser;
       if (user == null) throw 'User not authenticated';
 
-      await _supabase.from('consultations').insert({
-        'patient_id': user.id,
-        'doctor_id': doctorId,
-        'scheduled_at': scheduledAt.toIso8601String(),
-        'fee': fee,
-        'symptoms': symptoms,
-        'status': 'scheduled',
-      });
+      // Generate a simple Jitsi room code for this consultation.
+      // It must be URL-safe: use only letters, numbers, dashes, underscores.
+      final roomCode = 'consult_${DateTime.now().millisecondsSinceEpoch}';
+
+      final response = await _supabase
+          .from('consultations')
+          .insert({
+            'patient_id': user.id,
+            'doctor_id': doctorId,
+            'scheduled_at': scheduledAt.toIso8601String(),
+            'fee': fee,
+            'symptoms': symptoms,
+            'status': 'scheduled',
+            'room_code': roomCode,
+          })
+          .select()
+          .single();
+
+      return Map<String, dynamic>.from(response as Map);
     } catch (e) {
       print('Error creating consultation: $e');
       throw 'Failed to book appointment: $e';
@@ -92,6 +103,31 @@ class ConsultationService {
     } catch (e) {
       print('Error updating status: $e');
       throw 'Failed to update status';
+    }
+  }
+
+  // Update consultation notes and prescription (for doctors)
+  Future<void> updateDetails({
+    required String id,
+    String? notes,
+    String? prescription,
+    String? status,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (notes != null) data['notes'] = notes;
+      if (prescription != null) data['prescription'] = prescription;
+      if (status != null) data['status'] = status;
+
+      if (data.isEmpty) return;
+
+      await _supabase
+          .from('consultations')
+          .update(data)
+          .eq('id', id);
+    } catch (e) {
+      print('Error updating consultation details: $e');
+      throw 'Failed to update consultation details';
     }
   }
 }

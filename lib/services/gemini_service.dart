@@ -1,132 +1,291 @@
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:carelink/core/constants/api_constants.dart';
+import 'package:flutter/foundation.dart';
 
+/// Groq-backed AI service that keeps the same interface as the old GeminiService.
+///
+/// It calls Groq's OpenAI-compatible Chat Completions API under the hood.
 class GeminiService {
-  late final GenerativeModel _model;
-  late final ChatSession _chatSession;
+  static const String _baseUrl =
+      'https://api.groq.com/openai/v1/chat/completions';
+
+  // You can change this to any Groq-supported chat model if needed.
+  static const String _modelName = 'llama-3.1-8b-instant';
+
   bool _isInitialized = false;
+  String _activeModelName = _modelName;
+  String? _apiKey;
 
-  static const String _systemPrompt = '''
-You are a preliminary health assistant in the CareLink app. Your role is to help users understand their symptoms and guide them toward appropriate care.
+  String _preferredLanguage = 'English';
 
-CRITICAL GUIDELINES:
-1. You are NOT a replacement for medical professionals
-2. Always emphasize: "This is not medical advice. Consult a healthcare professional."
-3. For serious or emergency symptoms, immediately advise seeking medical attention
+  /// Conversation history for the chat-style assistant screen.
+  /// Each entry is a map with 'role' (system|user|assistant) and 'content'.
+  final List<Map<String, String>> _chatHistory = [];
 
-When analyzing symptoms:
-1. Ask clarifying questions about:
-   - Duration and onset
-   - Severity (mild/moderate/severe)
-   - Associated symptoms
-   - Any triggering factors
-2. Suggest 2-3 possible conditions (ranked by likelihood)
-3. Recommend appropriate over-the-counter medicines for common conditions
-4. Provide multiple medicine options when available (e.g., both ibuprofen and acetaminophen for pain)
-5. Indicate urgency level:
-   - EMERGENCY: Seek immediate medical attention (chest pain, difficulty breathing, severe injuries)
-   - HIGH: See doctor within 24 hours
-   - MEDIUM: Schedule doctor appointment soon
-   - LOW: Self-care with monitoring
-
-MEDICINE RECOMMENDATIONS:
-- Only suggest OTC (over-the-counter) medicines
-- Always mention MULTIPLE options for the same condition
-- Include generic names
-- Warn about common side effects
-- Remind about proper dosage (refer to package)
-- Never recommend prescription medications
-
-FORMAT YOUR RESPONSE:
-- Be conversational and empathetic
-- Use clear, simple language
-- Structure information with bullet points when helpful
-- Always end with the medical disclaimer
-
-Remember: Your goal is education and guidance, not diagnosis or treatment.
-''';
+  void setPreferredLanguage(String language) {
+    _preferredLanguage = language;
+  }
 
   Future<void> initialize() async {
     if (_isInitialized) return;
 
+    // .env is already loaded in main.dart, but this is harmless if called again.
     try {
       await dotenv.load(fileName: '.env');
-      final apiKey = dotenv.env['GEMINI_API_KEY'];
+    } catch (_) {}
 
-      if (apiKey == null ||
-          apiKey.isEmpty ||
-          apiKey == 'your_gemini_api_key_here') {
-        throw Exception(
-          'Gemini API key not found. Please add your API key to the .env file.\n'
-          'Get your free API key from: https://aistudio.google.com/app/apikey',
-        );
-      }
-
-      _model = GenerativeModel(
-        model: ApiConstants.geminiModel,
-        apiKey: apiKey,
-        generationConfig: GenerationConfig(
-          temperature: ApiConstants.geminiTemperature,
-          maxOutputTokens: ApiConstants.geminiMaxTokens,
-        ),
-        systemInstruction: Content.system(_systemPrompt),
-      );
-
-      _chatSession = _model.startChat();
-      _isInitialized = true;
-    } catch (e) {
-      throw Exception('Failed to initialize Gemini service: $e');
+    final key = dotenv.env['GROQ_API_KEY']?.trim();
+    if (key == null || key.isEmpty) {
+      throw Exception('Groq API key is invalid or missing in .env');
     }
+
+    _apiKey = key;
+    _isInitialized = true;
+    _activeModelName = _modelName;
+    debugPrint('[Groq] ✅ Initialized with model: $_activeModelName');
   }
 
-  Future<String> sendMessage(String message) async {
-    if (!_isInitialized) {
-      await initialize();
+  /// Internal helper to call Groq Chat Completions.
+  Future<String> _callGroq(List<Map<String, String>> messages,
+      {double temperature = 0.7}) async {
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      throw Exception('Groq API key not set');
     }
+
+    final response = await http.post(
+      Uri.parse(_baseUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $_apiKey',
+      },
+      body: jsonEncode({
+        'model': _modelName,
+        'messages': messages,
+        'temperature': temperature,
+        'stream': false,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      debugPrint(
+          '[Groq] Error ${response.statusCode}: ${response.body.substring(0, response.body.length.clamp(0, 500))}');
+      throw Exception(
+          'Groq API Error: HTTP ${response.statusCode}. Please try again later.');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final choices = data['choices'] as List<dynamic>?;
+    if (choices == null || choices.isEmpty) {
+      throw Exception('Groq response contained no choices');
+    }
+
+    final message = choices.first['message'] as Map<String, dynamic>?;
+    final content = message?['content'] as String?;
+    if (content == null || content.isEmpty) {
+      throw Exception('Groq response had empty content');
+    }
+    return content;
+  }
+
+  /// Performs a detailed clinical analysis of selected symptoms using Groq.
+  Future<String> analyzeSymptoms({
+    required List<String> symptoms,
+    required String gender,
+    required int age,
+    required double temperature,
+    String? language,
+  }) async {
+    if (!_isInitialized) {
+      try {
+        await initialize();
+      } catch (e) {
+        return
+            '⚠️ AI is currently unavailable. Please consult a doctor directly.\n\nError: $e';
+      }
+    }
+
+    final targetLanguage = language ?? _preferredLanguage;
+
+    final prompt = '''
+As a professional medical AI assistant, provide a detailed diagnostic analysis for the following patient:
+- Gender: $gender
+- Age: $age
+- Body Temperature: ${temperature.toStringAsFixed(1)}°C
+- Reported Symptoms: ${symptoms.join(', ')}
+
+Respond in this exact Markdown format:
+
+## 🔍 Potential Conditions
+List the top 3 most likely conditions with a brief clinical explanation.
+
+## ⚠️ Severity & Urgency
+Rate urgency as one of: **EMERGENCY**, **HIGH**, **MEDIUM**, or **LOW**.
+Explain why these symptoms together might indicate an underlying issue.
+
+## 🩺 Recommended Next Steps
+1. Type of specialist to consult.
+2. Common diagnostic tests.
+3. Lifestyle or immediate monitoring advice.
+
+## 💊 Common OTC Management
+Safe over-the-counter options if applicable, with emphasis on professional consultation.
+
+---
+**Disclaimer:** AI-generated analysis — NOT medical advice. Consult a licensed physician immediately.
+
+Respond entirely in $targetLanguage.
+''';
 
     try {
-      final response = await _chatSession.sendMessage(Content.text(message));
-      return response.text ??
-          'I apologize, but I couldn\'t generate a response. Please try again.';
+      final content = await _callGroq([
+        {
+          'role': 'system',
+          'content':
+              'You are a careful, conservative medical triage assistant. Never provide definitive diagnoses; always encourage consultation with a doctor. Always answer in $targetLanguage.',
+        },
+        {'role': 'user', 'content': prompt},
+      ]);
+      return content;
     } catch (e) {
-      if (e.toString().contains('429') || e.toString().contains('quota')) {
-        throw Exception(
-          'API rate limit reached. Please try again in a few minutes.',
-        );
-      }
-      throw Exception('Failed to get AI response: $e');
+      debugPrint('[Groq] analyzeSymptoms error: $e');
+      return
+          '⚠️ AI analysis failed ($_activeModelName): $e\n\nPlease consult a doctor directly.';
     }
   }
 
+  /// Provides safety-focused information about a specific medicine using Groq.
+  Future<String> analyzeMedicine({
+    required String name,
+    required List<String> activeIngredients,
+    String? purpose,
+    String? warnings,
+    String? dosageAndAdministration,
+    String? language,
+  }) async {
+    if (!_isInitialized) {
+      try {
+        await initialize();
+      } catch (e) {
+        return
+            '⚠️ AI is currently unavailable. Please consult a doctor or pharmacist.\n\nError: $e';
+      }
+    }
+
+    final targetLanguage = language ?? _preferredLanguage;
+
+    final prompt = '''
+You are a clinical pharmacist AI assistant. Explain this medicine in clear, patient-friendly language.
+
+Medicine name: $name
+Active ingredients: ${activeIngredients.join(', ')}
+Purpose / indications: ${purpose ?? 'Not clearly specified in the label.'}
+Important warnings: ${warnings ?? 'Not clearly specified in the label.'}
+Dosage & administration notes: ${dosageAndAdministration ?? 'Not clearly specified in the label.'}
+
+Respond in this Markdown structure:
+
+## 🧾 What this medicine is for
+Short overview of how it is typically used and what it treats.
+
+## ⚠️ Safety checks
+- Who should be extra careful using it (age, pregnancy, kidney/liver issues, allergies, etc.).
+- Important interactions to mention in general (do **not** guess exact drug–drug interactions, but call out common classes if relevant).
+
+## 💊 How to use it safely (general guidance)
+High-level tips matching common label guidance: with/without food, not exceeding prescribed dose, what to avoid (alcohol, driving if drowsy, etc.).
+
+## 🚨 When to call a doctor or emergency
+List a few serious symptoms that would require urgent medical help.
+
+---
+**Strong disclaimer:** This is general AI-generated information based on a public label and may be incomplete or inaccurate. It is **not** medical advice. Always follow your own doctor's or pharmacist's instructions and the official package insert.
+
+Respond entirely in $targetLanguage.
+''';
+
+    try {
+      final content = await _callGroq([
+        {
+          'role': 'system',
+          'content':
+              'You are a cautious clinical pharmacist. Never give dosing specific to an individual patient and never override a doctor. Always answer in $targetLanguage.',
+        },
+        {'role': 'user', 'content': prompt},
+      ]);
+      return content;
+    } catch (e) {
+      debugPrint('[Groq] analyzeMedicine error: $e');
+      return
+          '⚠️ AI medicine explanation failed ($_activeModelName): $e\n\nPlease consult your doctor or pharmacist.';
+    }
+  }
+
+  /// One-off chat call (non-streaming) used by other parts of the app.
+  Future<String> sendMessage(String message) async {
+    if (!_isInitialized) await initialize();
+
+    try {
+      _chatHistory.add({'role': 'user', 'content': message});
+
+      final messages = [
+        {
+          'role': 'system',
+          'content':
+              'You are a friendly medical assistant helping users describe and understand their symptoms. Do not give definitive diagnoses. Always respond in $_preferredLanguage.',
+        },
+        ..._chatHistory,
+      ];
+
+      final reply = await _callGroq(messages);
+      _chatHistory.add({'role': 'assistant', 'content': reply});
+      return reply;
+    } catch (e) {
+      debugPrint('[Groq] sendMessage error: $e');
+      return 'AI Error: $e';
+    }
+  }
+
+  /// Streaming-style interface used by SymptomInputScreen.
+  /// Groq is called once and the full answer is yielded as a single chunk.
   Stream<String> sendMessageStream(String message) async* {
     if (!_isInitialized) {
-      await initialize();
+      try {
+        await initialize();
+      } catch (e) {
+        yield
+            '⚠️ AI Initialization failed: $e. Please type your symptoms and try again.';
+        return;
+      }
     }
 
     try {
-      final response = _chatSession.sendMessageStream(Content.text(message));
-      await for (final chunk in response) {
-        final text = chunk.text;
-        if (text != null) {
-          yield text;
-        }
-      }
+      _chatHistory.add({'role': 'user', 'content': message});
+
+      final messages = [
+        {
+          'role': 'system',
+          'content':
+              'You are a friendly, safe medical assistant. Ask clarifying questions when needed and keep language simple. Avoid definitive diagnoses. Always respond in $_preferredLanguage.',
+        },
+        ..._chatHistory,
+      ];
+
+      final reply = await _callGroq(messages);
+      _chatHistory.add({'role': 'assistant', 'content': reply});
+
+      // Yield as a single chunk (UI already supports streaming semantics).
+      yield reply;
     } catch (e) {
-      if (e.toString().contains('429') || e.toString().contains('quota')) {
-        throw Exception(
-          'API rate limit reached. Please try again in a few minutes.',
-        );
-      }
-      throw Exception('Failed to get AI response: $e');
+      debugPrint('[Groq] sendMessageStream error: $e');
+      yield 'AI Stream Error: $e';
     }
   }
 
   void resetConversation() {
-    if (_isInitialized) {
-      _chatSession = _model.startChat();
-    }
+    _chatHistory.clear();
   }
 
   bool get isInitialized => _isInitialized;
+  String get activeModel => _activeModelName;
 }

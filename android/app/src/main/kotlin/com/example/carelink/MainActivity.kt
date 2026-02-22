@@ -1,4 +1,4 @@
-package com.example.carelink
+package com.example.pulsecare
 
 import io.flutter.embedding.android.FlutterActivity
 

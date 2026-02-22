@@ -1,6 +1,6 @@
 class AppStrings {
   // App Info
-  static const String appName = 'PulseCare';
+    static const String appName = 'Pulsecare';
   static const String appTagline = 'Your Preliminary Health Assistant';
 
   // Medical Disclaimer
@@ -17,7 +17,7 @@ class AppStrings {
       'or life-threatening conditions, call emergency services immediately.';
 
   // Home Screen
-  static const String homeWelcome = 'Welcome to PulseCare';
+    static const String homeWelcome = 'Welcome to Pulsecare';
   static const String homeSubtitle = 'How can we assist you today?';
 
   // Feature Cards

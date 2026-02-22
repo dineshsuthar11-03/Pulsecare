@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:carelink/core/theme/app_theme.dart';
-import 'package:carelink/core/constants/app_strings.dart';
-import 'package:carelink/features/home/home_screen.dart';
-import 'package:carelink/features/auth/role_selection_screen.dart';
-import 'package:carelink/features/doctor/doctor_dashboard_screen.dart';
+import 'package:pulsecare/core/theme/app_theme.dart';
+import 'package:pulsecare/core/constants/app_strings.dart';
+import 'package:pulsecare/features/home/home_screen.dart';
+import 'package:pulsecare/features/auth/role_selection_screen.dart';
+import 'package:pulsecare/features/doctor/doctor_dashboard_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,11 +40,11 @@ Future<void> main() async {
     debugPrint('Error initializing Supabase: $e');
   }
 
-  runApp(const CareLink());
+  runApp(const Pulsecare());
 }
 
-class CareLink extends StatelessWidget {
-  const CareLink({super.key});
+class Pulsecare extends StatelessWidget {
+  const Pulsecare({super.key});
 
   @override
   Widget build(BuildContext context) {

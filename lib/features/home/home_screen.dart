@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:carelink/core/constants/app_colors.dart';
-import 'package:carelink/features/symptom_checker/symptom_input_screen.dart';
-import 'package:carelink/features/medicine_guide/medicine_search_screen.dart';
-import 'package:carelink/features/patient/find_doctor_screen.dart';
-import 'package:carelink/features/patient/patient_appointments_screen.dart';
-import 'package:carelink/core/services/auth_service.dart';
-import 'package:carelink/features/auth/role_selection_screen.dart';
-import 'package:carelink/features/patient/patient_profile_screen.dart';
+import 'package:pulsecare/core/constants/app_colors.dart';
+import 'package:pulsecare/features/symptom_checker/symptom_selection_screen.dart';
+import 'package:pulsecare/features/medicine_guide/medicine_search_screen.dart';
+import 'package:pulsecare/features/patient/find_doctor_screen.dart';
+import 'package:pulsecare/features/patient/patient_appointments_screen.dart';
+import 'package:pulsecare/core/services/auth_service.dart';
+import 'package:pulsecare/features/auth/role_selection_screen.dart';
+import 'package:pulsecare/features/patient/patient_profile_screen.dart';
+import 'package:pulsecare/features/patient/emergency_help_screen.dart';
+import 'package:pulsecare/features/patient/nearby_medical_stores_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -19,63 +21,210 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          // Premium Header
-          SliverAppBar(
-            expandedHeight: 180,
-            floating: true,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: AppColors.primary,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1F2937),
+              Color(0xFF111827),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.favorite,
+                                    size: 14, color: Colors.pinkAccent),
+                                SizedBox(width: 4),
+                                Text(
+                                  'PulseCare',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Hi, $userName',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Let\'s take care of your health today.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PatientProfileScreen(),
+                        ),
+                      ),
+                      child: const CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.white24,
+                        child: Icon(Icons.person, color: Colors.white),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.logout, color: Colors.white70),
+                      onPressed: () async {
+                        await authService.signOut();
+                        if (context.mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (_) => const RoleSelectionScreen(),
+                            ),
+                            (route) => false,
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+              ),
+
+              // Search + quick actions card
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2563EB), Color(0xFF10B981)],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MedicineSearchScreen(),
+                          ),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
                             children: [
-                              const Text(
-                                'Main Hello,',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
+                              const Icon(Icons.search,
+                                  color: Colors.white, size: 20),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Search symptoms, medicines or doctors',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
-                              Text(
-                                userName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'Explore',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          GestureDetector(
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _quickChip(
+                            icon: Icons.medical_information_outlined,
+                            label: 'AI Symptom',
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const PatientProfileScreen(),
+                                builder: (_) => const SymptomSelectionScreen(),
                               ),
                             ),
-                            child: const CircleAvatar(
-                              radius: 25,
-                              backgroundColor: Colors.white24,
-                              child: Icon(Icons.person, color: Colors.white),
+                          ),
+                          _quickChip(
+                            icon: Icons.medication_outlined,
+                            label: 'Medicines',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MedicineSearchScreen(),
+                              ),
+                            ),
+                          ),
+                          _quickChip(
+                            icon: Icons.video_call_outlined,
+                            label: 'Consult',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const FindDoctorScreen(),
+                              ),
                             ),
                           ),
                         ],
@@ -84,130 +233,99 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout, color: Colors.white),
-                onPressed: () async {
-                  await authService.signOut();
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => const RoleSelectionScreen(),
-                      ),
-                      (route) => false,
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
 
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 24),
+              const SizedBox(height: 18),
 
-                  // Search Bar Placeholder
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MedicineSearchScreen(),
-                      ),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.search, color: AppColors.textTertiary),
-                          SizedBox(width: 12),
-                          Text(
-                            'Search symptoms, medicines...',
-                            style: TextStyle(color: AppColors.textTertiary),
-                          ),
-                        ],
-                      ),
+              // Scrollable content
+              Expanded(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(32),
                     ),
                   ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader('Your health hub', null),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          height: 170,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _featureCard(
+                                context,
+                                title: 'AI Symptom Checker',
+                                subtitle:
+                                    'Describe how you feel in your own words.',
+                                icon: Icons.psychology,
+                                color: AppColors.primary,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const SymptomSelectionScreen(),
+                                  ),
+                                ),
+                              ),
+                              _featureCard(
+                                context,
+                                title: 'Doctors near you',
+                                subtitle:
+                                    'Browse specialists and schedule visits.',
+                                icon: Icons.local_hospital,
+                                color: AppColors.accent,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const FindDoctorScreen(),
+                                  ),
+                                ),
+                              ),
+                              _featureCard(
+                                context,
+                                title: 'Nearby medical stores',
+                                subtitle:
+                                    'Find chemists and pharmacies near you.',
+                                icon: Icons.local_pharmacy,
+                                color: AppColors.tertiary,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const NearbyMedicalStoresScreen(),
+                                  ),
+                                ),
+                              ),
+                              _featureCard(
+                                context,
+                                title: 'Medicine guide',
+                                subtitle:
+                                    'Check safety and interactions instantly.',
+                                icon: Icons.medication_liquid,
+                                color: AppColors.secondary,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const MedicineSearchScreen(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
 
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('Explore PulseCare', null),
-                  const SizedBox(height: 16),
-
-                  // Main Category Cards
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildCategoryItem(
+                        const SizedBox(height: 24),
+                        _buildSectionHeader('Upcoming & history', null),
+                        const SizedBox(height: 12),
+                        _buildCategoryItem(
                           context,
-                          'Symptom\nChecker',
-                          Icons.health_and_safety,
-                          AppColors.primary,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SymptomInputScreen(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildCategoryItem(
-                          context,
-                          'Consult\nDoctor',
-                          Icons.personal_video,
-                          AppColors.accent,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const FindDoctorScreen(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildCategoryItem(
-                          context,
-                          'Medicine\nGuide',
-                          Icons.medication,
-                          AppColors.secondary,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MedicineSearchScreen(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildCategoryItem(
-                          context,
-                          'My Appts\nHistory',
+                          'Appointments',
                           Icons.calendar_month,
                           AppColors.tertiary,
                           () => Navigator.push(
@@ -217,70 +335,27 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
 
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('Urgent Care', null),
-                  const SizedBox(height: 16),
-
-                  // Emergency Banner
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.emergency, color: Colors.white, size: 40),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Emergency Help?',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'Find nearest ambulance or hospital immediately',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(height: 24),
+                        _buildSectionHeader('Emergency', null),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const EmergencyHelpScreen(),
+                            ),
                           ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          color: Colors.white,
-                          size: 16,
+                          child: _emergencyBanner(),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 100),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -319,41 +394,193 @@ class HomeScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.border, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withOpacity(0.12),
+              color.withOpacity(0.03),
+            ],
+          ),
+          border: Border.all(color: color.withOpacity(0.3), width: 1),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withOpacity(0.18),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 28),
+              child: Icon(icon, color: color, size: 26),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios,
+                size: 16, color: AppColors.textTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _quickChip({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: Colors.white),
+            const SizedBox(width: 6),
             Text(
-              title,
+              label,
               style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _featureCard(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      width: 240,
+      margin: const EdgeInsets.only(right: 16),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color.withOpacity(0.14), Colors.white],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emergencyBanner() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withOpacity(0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.emergency, color: Colors.white, size: 36),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Emergency help',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'If you have chest pain, trouble breathing, or feel unsafe, call your local emergency number immediately.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+        ],
       ),
     );
   }

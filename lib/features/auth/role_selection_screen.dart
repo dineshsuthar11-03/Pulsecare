@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:carelink/core/constants/app_colors.dart';
-import 'package:carelink/features/auth/widgets/role_card.dart';
-import 'package:carelink/features/auth/login_screen.dart';
-import 'package:carelink/core/services/auth_service.dart';
+import 'package:pulsecare/core/constants/app_colors.dart';
+import 'package:pulsecare/features/auth/widgets/role_card.dart';
+import 'package:pulsecare/features/auth/login_screen.dart';
+import 'package:pulsecare/core/services/auth_service.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -62,7 +62,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                           ),
                           const SizedBox(height: 32),
                           Text(
-                            'Welcome to CareLink',
+                            'Welcome to Pulsecare',
                             style: Theme.of(context).textTheme.displaySmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
@@ -139,20 +139,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Admin Login Link
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const LoginScreen(role: UserRole.admin),
-                                ),
-                              );
-                            },
-                            child: const Text('Admin Login'),
                           ),
                           const SizedBox(height: 24),
                         ],
