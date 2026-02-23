@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const medicineController = require('../controllers/medicineController');
 
+// Simple health check for the medicine routes
+// @route GET /api/medicines
+router.get('/', (req, res) => {
+	res.json({
+		status: 'ok',
+		message: 'Medicine routes are mounted. Use /search or /alternatives.',
+	});
+});
+
 // @route GET /api/medicines/search?q=...
 router.get('/search', medicineController.searchMedicines);
 

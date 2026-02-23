@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 
+// Simple health check for the auth routes
+// @route GET /api/auth
+router.get('/', (req, res) => {
+	res.json({
+		status: 'ok',
+		message: 'Auth routes are mounted. Use POST /signup, /login, etc.',
+	});
+});
+
 // @route POST /api/auth/signup
 router.post('/signup', authController.signup);
 
