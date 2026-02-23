@@ -92,14 +92,48 @@ function loadMedicinesIfNeeded() {
   if (initialized) return;
 
   try {
-      // CSV lives at project root (Pulsecare/updated_indian_medicine_data.csv),
-      // so go two levels up from this service file directory.
-      const csvPath = path.join(
-        __dirname,
-        '..',
-        '..',
-        'updated_indian_medicine_data.csv',
+    // Support multiple possible locations so this works both locally
+    // and when deployed (e.g. Railway with different app roots).
+    const candidatePaths = [];
+
+    // 1) Env override if explicitly provided
+    if (process.env.MEDICINE_CSV_PATH) {
+      candidatePaths.push(process.env.MEDICINE_CSV_PATH);
+    }
+
+    // 2) Project root: ../../updated_indian_medicine_data.csv
+    candidatePaths.push(
+      path.join(__dirname, '..', '..', 'updated_indian_medicine_data.csv'),
+    );
+
+    // 3) Backend root: ../updated_indian_medicine_data.csv
+    candidatePaths.push(
+      path.join(__dirname, '..', 'updated_indian_medicine_data.csv'),
+    );
+
+    let csvPath = null;
+    for (const candidate of candidatePaths) {
+      try {
+        if (candidate && fs.existsSync(candidate)) {
+          csvPath = candidate;
+          break;
+        }
+      } catch (_) {
+        // ignore and try next
+      }
+    }
+
+    if (!csvPath) {
+      console.error(
+        '[MedicineService] Could not locate updated_indian_medicine_data.csv. Checked paths:',
+        candidatePaths,
       );
+      medicines = [];
+      ingredientIndex = new Map();
+      initialized = true;
+      return;
+    }
+
     const fileContent = fs.readFileSync(csvPath, 'utf8');
 
     const lines = fileContent.split(/\r?\n/);

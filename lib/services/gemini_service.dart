@@ -13,6 +13,10 @@ class GeminiService {
   // You can change this to any Groq-supported chat model if needed.
   static const String _modelName = 'llama-3.1-8b-instant';
 
+  // Optional compile-time override via --dart-define=GROQ_API_KEY=...
+  static const String _definedGroqKey =
+      String.fromEnvironment('GROQ_API_KEY', defaultValue: '');
+
   bool _isInitialized = false;
   String _activeModelName = _modelName;
   String? _apiKey;
@@ -30,14 +34,22 @@ class GeminiService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    // .env is already loaded in main.dart, but this is harmless if called again.
-    try {
-      await dotenv.load(fileName: '.env');
-    } catch (_) {}
+    String? key;
 
-    final key = dotenv.env['GROQ_API_KEY']?.trim();
+    // 1) Prefer compile-time key (works reliably on web/hosting builds).
+    if (_definedGroqKey.isNotEmpty) {
+      key = _definedGroqKey.trim();
+    } else {
+      // 2) Fallback to runtime .env file (useful for local dev).
+      try {
+        await dotenv.load(fileName: '.env');
+      } catch (_) {}
+
+      key = dotenv.env['GROQ_API_KEY']?.trim();
+    }
+
     if (key == null || key.isEmpty) {
-      throw Exception('Groq API key is invalid or missing in .env');
+      throw Exception('Groq API key is invalid or missing in environment');
     }
 
     _apiKey = key;
