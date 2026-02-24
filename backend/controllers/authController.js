@@ -16,9 +16,13 @@ const supabase = createClient(
     }
 );
 
-// Configure NodeMailer
+// Configure NodeMailer for Gmail SMTP
+// This explicit SMTP config tends to be more reliable on hosts like Railway
+// than the generic `service: 'gmail'` shortcut.
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // use STARTTLS
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
