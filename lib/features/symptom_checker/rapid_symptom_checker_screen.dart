@@ -36,11 +36,21 @@ class _RapidSymptomCheckerScreenState extends State<RapidSymptomCheckerScreen> {
   double _age = 25;
   double _temp = 37.0;
   String _selectedLanguage = 'English';
+  late final TextEditingController _tempController;
+  bool _isCelsius = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tempController =
+        TextEditingController(text: _temp.toStringAsFixed(1));
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     _pageController.dispose();
+    _tempController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -535,25 +545,53 @@ class _RapidSymptomCheckerScreenState extends State<RapidSymptomCheckerScreen> {
             ),
           ),
           _inputCard(
-            'Body Temperature (°C)',
+            'Body Temperature',
             Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '${_temp.toStringAsFixed(1)} °C',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: TextField(
+                        controller: _tempController,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText:
+                              _isCelsius ? 'Temperature (°C)' : 'Temperature (°F)',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onChanged: _onTemperatureChanged,
+                      ),
                     ),
-                    const Text('35-42'),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _tempUnitChip(true, '°C'),
+                          _tempUnitChip(false, '°F'),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                Slider(
-                  value: _temp,
-                  min: 35,
-                  max: 42,
-                  activeColor: Colors.indigo,
-                  onChanged: (v) => setState(() => _temp = v),
+                const SizedBox(height: 8),
+                Text(
+                  _isCelsius
+                      ? 'Typical range: 35–42 °C'
+                      : 'Typical range: 95–107 °F',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
                 ),
               ],
             ),
@@ -620,6 +658,51 @@ class _RapidSymptomCheckerScreenState extends State<RapidSymptomCheckerScreen> {
           const SizedBox(height: 16),
           child,
         ],
+      ),
+    );
+  }
+
+  void _onTemperatureChanged(String value) {
+    final parsed = double.tryParse(value);
+    if (parsed == null) {
+      return;
+    }
+
+    setState(() {
+      if (_isCelsius) {
+        _temp = parsed;
+      } else {
+        _temp = (parsed - 32) * 5 / 9;
+      }
+    });
+  }
+
+  Widget _tempUnitChip(bool forCelsius, String label) {
+    final isSelected = _isCelsius == forCelsius;
+    return InkWell(
+      onTap: () {
+        if (isSelected) return;
+        setState(() {
+          _isCelsius = forCelsius;
+          final displayTemp = _isCelsius
+              ? _temp
+              : (_temp * 9 / 5) + 32;
+          _tempController.text = displayTemp.toStringAsFixed(1);
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.indigo : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.indigo,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
