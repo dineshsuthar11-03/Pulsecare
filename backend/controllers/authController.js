@@ -61,14 +61,16 @@ const createAndSendOtp = async (email, subject, introText) => {
         text: `${introText}\n\nYour One-Time Password (OTP) is: ${otp}\n\nThis code will expire in 10 minutes. If you did not request this, you can ignore this email.`,
     };
 
-    try {
-        await transporter.sendMail(mailOptions);
-    } catch (err) {
-        console.error('Error sending OTP email via Nodemailer:', err);
-        throw new Error(
-            'Failed to send OTP email. Please check email configuration or try again later.',
-        );
-    }
+    // Send email in the background so the HTTP request
+    // doesn't hang if the SMTP provider is slow.
+    transporter
+        .sendMail(mailOptions)
+        .then(() => {
+            console.log(`OTP email sent to ${email}`);
+        })
+        .catch((err) => {
+            console.error('Error sending OTP email via Nodemailer:', err);
+        });
 };
 
 // Helper to verify an OTP for a given email and consume it
