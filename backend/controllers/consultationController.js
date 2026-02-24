@@ -97,22 +97,19 @@ exports.sendScheduleEmails = async (req, res) => {
       },
     ];
 
-    // Fire-and-forget email sending so the HTTP request
-    // returns quickly even if SMTP is slow.
-    Promise.all(mails.map((mail) => transporter.sendMail(mail)))
-      .then(() => {
-        console.log(
-          `[ConsultationController] Schedule emails sent to ${patient.email} and ${doctor.email}`,
-        );
-      })
-      .catch((err) => {
-        console.error(
-          '[ConsultationController] Error sending schedule emails via Nodemailer:',
-          err,
-        );
-      });
-
-    return res.json({ success: true });
+    try {
+      await Promise.all(mails.map((mail) => transporter.sendMail(mail)));
+      console.log(
+        `[ConsultationController] Schedule emails sent to ${patient.email} and ${doctor.email}`,
+      );
+      return res.json({ success: true });
+    } catch (mailErr) {
+      console.error(
+        '[ConsultationController] Error sending schedule emails via Nodemailer:',
+        mailErr,
+      );
+      return res.status(500).json({ error: 'Failed to send schedule emails.' });
+    }
   } catch (err) {
     console.error('[ConsultationController] sendScheduleEmails error:', err.message || err);
     return res.status(500).json({ error: 'Failed to send schedule emails.' });
