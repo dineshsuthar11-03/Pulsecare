@@ -386,8 +386,8 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
             patientId: user.id,
             doctorId: widget.doctor['id'],
             scheduledAt: scheduledAt,
-            consultationId: consultation['id'] as String?,
-            roomCode: consultation['room_code'] as String?,
+            consultationId: consultation['id']?.toString(),
+            roomCode: consultation['room_code']?.toString(),
           );
         } catch (e) {
           emailError = e.toString();

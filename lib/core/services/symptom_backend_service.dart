@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:pulsecare/core/constants/app_config.dart';
 
 class SymptomBackendService {
-  static const String baseUrl =
-      'https://pulsecare-production-ae31.up.railway.app/api/symptoms';
+  static String get baseUrl => AppConfig.symptomsBaseUrl;
 
   /// Sends symptoms and patient info to the backend for RapidAPI analysis.
   Future<Map<String, dynamic>> analyzeSymptoms({

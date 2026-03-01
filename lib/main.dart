@@ -1,29 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pulsecare/core/theme/app_theme.dart';
 import 'package:pulsecare/core/constants/app_strings.dart';
+import 'package:pulsecare/core/constants/app_config.dart';
 import 'package:pulsecare/features/home/home_screen.dart';
 import 'package:pulsecare/features/auth/role_selection_screen.dart';
 import 'package:pulsecare/features/doctor/doctor_dashboard_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Load environment variables (.env). If this fails (e.g. in some web builds),
+  // AppConfig falls back to baked-in Supabase credentials so the app still runs.
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('Warning: Failed to load .env file: $e');
+  }
 
-  // Supabase configuration
-  // In production web builds, .env assets may not be available,
-  // so we fall back to baked-in public Supabase credentials.
-  const fallbackSupabaseUrl = 'https://rpyccvaakjhpsumgqarf.supabase.co';
-  const fallbackSupabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJweWNjdmFha2pocHN1bWdxYXJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MjkyNDcsImV4cCI6MjA4NjQwNTI0N30.Pogb_nMKgv0WIbyHEb0V8LU8iNW9slwanKCTt_aNVwM';
-
-  final supabaseUrl = fallbackSupabaseUrl;
-  final supabaseAnonKey = fallbackSupabaseAnonKey;
-
-  // Initialize Supabase
+  // Initialize Supabase using configuration from AppConfig (env first, then fallbacks).
   try {
     await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
     );
   } catch (e) {
     debugPrint('Error initializing Supabase: $e');

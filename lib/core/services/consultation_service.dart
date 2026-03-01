@@ -14,6 +14,11 @@ class ConsultationService {
       final user = _supabase.auth.currentUser;
       if (user == null) throw 'User not authenticated';
 
+      // Ensure a patient profile exists so the foreign key constraint on
+      // consultations.patient_id -> patients.id is satisfied, even for
+      // users created before the database trigger was added.
+      await _ensurePatientProfile(user.id);
+
       // Generate a simple Jitsi room code for this consultation.
       // It must be URL-safe: use only letters, numbers, dashes, underscores.
       final roomCode = 'consult_${DateTime.now().millisecondsSinceEpoch}';
@@ -36,6 +41,31 @@ class ConsultationService {
     } catch (e) {
       print('Error creating consultation: $e');
       throw 'Failed to book appointment: $e';
+    }
+  }
+
+  Future<void> _ensurePatientProfile(String userId) async {
+    try {
+      final existing = await _supabase
+          .from('patients')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (existing != null) {
+        return;
+      }
+
+      // Insert a minimal patient row; RLS policy allows users to insert
+      // their own patient profile.
+      await _supabase.from('patients').insert({
+        'id': userId,
+        'gender': 'Not specified',
+      });
+    } catch (e) {
+      // If this fails due to RLS or conflicts, let the main insert surface
+      // a meaningful error; we only log here to aid debugging.
+      print('Warning: Failed to ensure patient profile for $userId: $e');
     }
   }
 

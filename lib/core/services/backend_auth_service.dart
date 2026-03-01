@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pulsecare/core/constants/app_config.dart';
 
 class BackendAuthService {
-  // Use 10.0.2.2 for Android Emulator, or your local IP for physical devices
-  // For Chrome/Web, localhost works.
-  static const String baseUrl =
-      'https://pulsecare-production-ae31.up.railway.app/api/auth';
+  /// Base URL for auth endpoints. Respects BACKEND_BASE_URL from .env
+  /// and falls back to sensible defaults via AppConfig.
+  static String get baseUrl => AppConfig.authBaseUrl;
 
   Future<Map<String, dynamic>> signup({
     required String email,
