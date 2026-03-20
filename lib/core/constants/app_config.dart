@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Central configuration for Supabase and backend URLs.
@@ -14,25 +13,17 @@ class AppConfig {
           ? dotenv.env['SUPABASE_ANON_KEY']!.trim()
           : _fallbackSupabaseAnonKey;
 
-  // Backend base URL (without trailing slash), e.g. http://localhost:3000 or https://pulsecare-production-...railway.app
+  // Backend base URL (without trailing slash), e.g. https://your-backend.onrender.com
   static String get backendBaseUrl {
     final fromEnv = dotenv.env['BACKEND_BASE_URL']?.trim();
-    const railway = 'https://pulsecare-production-ae31.up.railway.app';
-    
-    // In production (release builds), always use the deployed Railway backend
-    // regardless of what is in the local .env. This ensures that web/Play
-    // Store/App Store builds talk to the live API, not localhost.
-    if (kReleaseMode) {
-      return railway;
-    }
 
-    // Development: allow overriding via BACKEND_BASE_URL in .env.
+    // Use BACKEND_BASE_URL in all modes so the deployment target is explicit
+    // and not tied to a hardcoded provider URL.
     if (fromEnv != null && fromEnv.isNotEmpty) {
       return _stripTrailingSlash(fromEnv);
     }
 
-    // Default local dev URL if env is missing. Note: your backend's PORT in
-    // backend/.env is 5000, so we default to that here.
+    // Fallback local dev URL if env is missing.
     return 'http://localhost:5000';
   }
 
