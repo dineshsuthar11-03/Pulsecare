@@ -36,7 +36,7 @@ class AppConfig {
   }
 
   static const String _fallbackBackendBaseUrl =
-      'https://pulsecare-backend.onrender.com';
+      'https://pulsecare-backend-ws9c.onrender.com';
 
   // These should match the constants previously hard-coded in main.dart
   static const String _fallbackSupabaseUrl =
