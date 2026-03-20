@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const nodemailer = require('nodemailer');
+const { sendTextEmail } = require('../services/emailService');
 require('dotenv').config();
 
 const supabase = createClient(
@@ -12,16 +12,6 @@ const supabase = createClient(
     },
   },
 );
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 exports.sendScheduleEmails = async (req, res) => {
   const { patientId, doctorId, scheduledAt, consultationId, roomCode } =
@@ -84,13 +74,11 @@ exports.sendScheduleEmails = async (req, res) => {
 
     const mails = [
       {
-        from: process.env.EMAIL_USER,
         to: patient.email,
         subject,
         text: patientText,
       },
       {
-        from: process.env.EMAIL_USER,
         to: doctor.email,
         subject,
         text: doctorText,
@@ -98,14 +86,14 @@ exports.sendScheduleEmails = async (req, res) => {
     ];
 
     try {
-      await Promise.all(mails.map((mail) => transporter.sendMail(mail)));
+      await Promise.all(mails.map((mail) => sendTextEmail(mail)));
       console.log(
         `[ConsultationController] Schedule emails sent to ${patient.email} and ${doctor.email}`,
       );
       return res.json({ success: true });
     } catch (mailErr) {
       console.error(
-        '[ConsultationController] Error sending schedule emails via Nodemailer:',
+        '[ConsultationController] Error sending schedule emails via Resend:',
         mailErr,
       );
       return res.status(500).json({ error: 'Failed to send schedule emails.' });

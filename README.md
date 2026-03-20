@@ -45,13 +45,13 @@ Typical flow:
 - `agora-access-token` – Agora/Jitsi/video-call related integrations (token generation)
 - `csv-parse` – reading local CSVs for Indian medicine data
 - `bcrypt`, `jsonwebtoken` – password hashing and JWT auth
-- `nodemailer` – sending email notifications (consultations, OTPs, etc.)
+- `resend` – sending email notifications (consultations, OTPs, etc.)
 - `dotenv` – environment variable management
 
 **Infrastructure & Services**
 - Supabase project for auth, DB, and storage
 - Groq AI API (via `GROQ_API_KEY`)
-- SMTP provider (e.g., Gmail) for email notifications
+- Resend Email API for transactional emails (OTPs and consultation notifications)
 
 ---
 
@@ -141,11 +141,25 @@ JWT_SECRET=some_long_random_string
 
 GROQ_API_KEY=...                      # For Groq AI symptom analysis
 
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=app_password_or_smtp_pass
+EMAIL_PROVIDER=smtp                   # smtp or resend
+
+RESEND_API_KEY=re_...
+EMAIL_FROM=PulseCare <onboarding@resend.dev>
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_sender@gmail.com
+SMTP_PASS=your_gmail_app_password
 
 JITSI_APP_KEY=vpaas-magic-cookie-...
 ```
+
+Email provider behavior:
+
+- If `EMAIL_PROVIDER=smtp`, backend sends OTP/notification emails using SMTP credentials.
+- If `EMAIL_PROVIDER=resend`, backend sends emails via Resend API.
+- If `EMAIL_PROVIDER` is not set, backend auto-picks SMTP when SMTP creds exist; otherwise it uses Resend.
 
 > Do **not** commit `.env` files. They should be kept local or in secret managers.
 
@@ -228,6 +242,11 @@ The server will start on `http://localhost:3000` (or the `PORT` you configure in
 
 - `GET /` → returns `PulseCare API is running...`
 
+Render deployment note:
+
+- Render sets `PORT` automatically; keep `const PORT = process.env.PORT || 3000` as-is.
+- Add backend environment variables in Render dashboard (`SUPABASE_*`, `JWT_SECRET`, `GROQ_API_KEY`, `EMAIL_PROVIDER`, `EMAIL_FROM`, `JITSI_APP_KEY`, plus either `RESEND_API_KEY` or `SMTP_*`).
+
 ---
 
 ## 7. Backend API – Main Endpoints
@@ -296,7 +315,7 @@ Defined in `backend/routes/consultationRoutes.js` and `backend/controllers/consu
 	- Body: `{ patientId, doctorId, scheduledAt, consultationId?, roomCode? }`.
 	- Looks up patient & doctor in Supabase `users` table using server-side service role key.
 	- Formats localized date/time and constructs Jitsi room code and URL.
-	- Sends email notifications to both patient and doctor using Nodemailer.
+	- Sends email notifications to both patient and doctor using the configured provider (`smtp` or `resend`).
 
 ---
 
@@ -434,7 +453,7 @@ Key concepts:
 
 - **Environment variables**: Most runtime errors come from missing or incorrect `.env` values (especially `GROQ_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `DATABASE_URL`). Double-check them.
 - **CORS issues**: When calling the backend from Flutter Web, ensure the `cors` middleware in `backend/index.js` is enabled (it is by default). If hosting on different domains, configure allowed origins.
-- **Emails**: For Gmail, you will likely need an App Password (if 2FA is enabled) instead of the normal account password.
+- **Emails**: If using SMTP, set `EMAIL_PROVIDER=smtp` with valid `SMTP_*` credentials (Gmail App Password recommended). If using Resend, verify your sender domain and set `RESEND_API_KEY` + `EMAIL_FROM`.
 - **Supabase roles**: Make sure `users` table and auth metadata are kept in sync (especially `role`) so that `AuthWrapper` can route users correctly.
 
 ---

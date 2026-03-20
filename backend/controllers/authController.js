@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { sendTextEmail } = require('../services/emailService');
 require('dotenv').config();
 
 // Initialize Supabase Admin Client
@@ -15,19 +15,6 @@ const supabase = createClient(
         },
     }
 );
-
-// Configure NodeMailer for Gmail SMTP
-// This explicit SMTP config tends to be more reliable on hosts like Railway
-// than the generic `service: 'gmail'` shortcut.
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // use STARTTLS
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
 
 // Generate a 6-digit numeric OTP
 const generateOtp = () =>
@@ -55,17 +42,16 @@ const createAndSendOtp = async (email, subject, introText) => {
     }
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
         to: email,
         subject,
         text: `${introText}\n\nYour One-Time Password (OTP) is: ${otp}\n\nThis code will expire in 10 minutes. If you did not request this, you can ignore this email.`,
     };
 
     try {
-        await transporter.sendMail(mailOptions);
+        await sendTextEmail(mailOptions);
         console.log(`OTP email sent to ${email}`);
     } catch (err) {
-        console.error('Error sending OTP email via Nodemailer:', err);
+        console.error('Error sending OTP email via Resend:', err);
         throw new Error('Failed to send OTP email. Please check email configuration.');
     }
 };
@@ -294,8 +280,7 @@ exports.verifySignupOtp = async (req, res) => {
 
         // Optional: send a welcome/confirmation email
         try {
-            await transporter.sendMail({
-                from: process.env.EMAIL_USER,
+            await sendTextEmail({
                 to: email,
                 subject: 'Your PulseCare account is verified',
                 text:
@@ -347,8 +332,7 @@ exports.resetPasswordWithOtp = async (req, res) => {
         }
 
         try {
-            await transporter.sendMail({
-                from: process.env.EMAIL_USER,
+            await sendTextEmail({
                 to: email,
                 subject: 'Your PulseCare password was changed',
                 text:

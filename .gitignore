@@ -34,6 +34,8 @@ backend/.env
 .pub/
 /build/
 /coverage/
+node_modules/
+backend/node_modules/
 
 # Symbolication related
 app.*.symbols
