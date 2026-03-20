@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pulsecare/core/constants/app_colors.dart';
-import 'package:pulsecare/core/services/consultation_backend_service.dart';
 import 'package:pulsecare/core/services/consultation_service.dart';
+import 'package:pulsecare/core/services/consultation_backend_service.dart';
 import 'package:pulsecare/features/consultation/widgets/booking_calendar.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
 class DoctorDetailScreen extends StatefulWidget {
@@ -16,19 +15,136 @@ class DoctorDetailScreen extends StatefulWidget {
 }
 
 class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
+  final ConsultationService _consultationService = ConsultationService();
+  final ConsultationBackendService _consultationBackendService =
+      ConsultationBackendService();
+
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+  Map<String, dynamic>? _doctorAvailability;
+  List<TimeOfDay> _availableTimeSlots = [];
+
+  bool _isSlotsLoading = false;
+  String? _slotsError;
   bool _isBooking = false;
   DateTime? _pendingScheduledAt;
 
   @override
   void initState() {
     super.initState();
+    _doctorAvailability = widget.doctor['availability'] as Map<String, dynamic>?;
+    _bootstrapScheduling();
   }
 
   @override
   void dispose() {
     super.dispose();
+  }
+
+  Future<void> _bootstrapScheduling() async {
+    await _refreshDoctorAvailability();
+
+    final firstDate = _findFirstBookableDate();
+    if (!mounted) return;
+
+    setState(() => _selectedDate = firstDate);
+
+    if (firstDate != null) {
+      await _loadSlotsForDate(firstDate);
+    }
+  }
+
+  Future<void> _refreshDoctorAvailability() async {
+    try {
+      final result = await _consultationBackendService.getDoctorAvailability(
+        widget.doctor['id'].toString(),
+      );
+
+      final availability = result['availability'];
+      if (availability is Map<String, dynamic> && mounted) {
+        setState(() => _doctorAvailability = availability);
+      }
+    } catch (_) {
+      // Keep using availability that came with doctor profile if backend fetch fails.
+    }
+  }
+
+  DateTime? _findFirstBookableDate() {
+    for (int i = 1; i <= 14; i++) {
+      final date = DateTime.now().add(Duration(days: i));
+      if (_isDateBookable(date)) {
+        return date;
+      }
+    }
+    return null;
+  }
+
+  String _weekday(DateTime date) => DateFormat('EEEE').format(date);
+
+  bool _isDateBookable(DateTime date) {
+    final availability = _doctorAvailability;
+    if (availability == null) {
+      return true;
+    }
+
+    final rawDays = availability['days'];
+    if (rawDays is! Map) {
+      return true;
+    }
+
+    final dayName = _weekday(date);
+    final exact = rawDays[dayName];
+    if (exact is bool) return exact;
+
+    final lower = rawDays[dayName.toLowerCase()];
+    if (lower is bool) return lower;
+
+    return true;
+  }
+
+  TimeOfDay? _parseSlotTime(String value) {
+    final parts = value.split(':');
+    if (parts.length != 2) return null;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  Future<void> _loadSlotsForDate(DateTime date) async {
+    setState(() {
+      _isSlotsLoading = true;
+      _slotsError = null;
+      _availableTimeSlots = [];
+      _selectedTime = null;
+    });
+
+    try {
+      final slots = await _consultationBackendService.getDoctorAvailableSlots(
+        doctorId: widget.doctor['id'].toString(),
+        date: date,
+      );
+
+      final parsedSlots = slots
+          .map((slot) => _parseSlotTime((slot['time'] ?? '').toString()))
+          .whereType<TimeOfDay>()
+          .toList();
+
+      if (!mounted) return;
+      setState(() {
+        _availableTimeSlots = parsedSlots;
+        _isSlotsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSlotsLoading = false;
+        _slotsError = e.toString();
+      });
+    }
   }
 
   @override
@@ -145,11 +261,30 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
 
                   // Calendar & Time Slots
                   BookingCalendar(
-                    onDateSelected: (date) =>
-                        setState(() => _selectedDate = date),
+                    initialDate: _selectedDate,
+                    isDateEnabled: _isDateBookable,
+                    availableTimeSlots: _availableTimeSlots,
+                    onDateSelected: (date) {
+                      setState(() => _selectedDate = date);
+                      _loadSlotsForDate(date);
+                    },
                     onTimeSelected: (time) =>
                         setState(() => _selectedTime = time),
                   ),
+                  const SizedBox(height: 12),
+                  if (_isSlotsLoading)
+                    const LinearProgressIndicator(minHeight: 3),
+                  if (_slotsError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Could not load slots: $_slotsError',
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 100), // Padding for Bottom Bar
                 ],
               ),
@@ -243,8 +378,9 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
           Expanded(
             child: ElevatedButton(
               onPressed:
-                  (_selectedDate != null &&
+                (_selectedDate != null &&
                       _selectedTime != null &&
+                  !_isSlotsLoading &&
                       !_isBooking)
                   ? _handleBooking
                   : null,
@@ -368,43 +504,14 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
       final fee = (widget.doctor['consultation_fee'] ?? 500).toDouble();
       final scheduledAt = _pendingScheduledAt!;
 
-      final service = ConsultationService();
-      final consultation = await service.createConsultation(
+      await _consultationService.createConsultation(
         doctorId: widget.doctor['id'],
         scheduledAt: scheduledAt,
         fee: fee,
         symptoms: 'Scheduled Consultation',
       );
 
-      // Trigger backend email notification for patient and doctor
-      final user = Supabase.instance.client.auth.currentUser;
-      String? emailError;
-      if (user != null) {
-        final backend = ConsultationBackendService();
-        try {
-          await backend.sendScheduleEmail(
-            patientId: user.id,
-            doctorId: widget.doctor['id'],
-            scheduledAt: scheduledAt,
-            consultationId: consultation['id']?.toString(),
-            roomCode: consultation['room_code']?.toString(),
-          );
-        } catch (e) {
-          emailError = e.toString();
-        }
-      }
-
       if (mounted) {
-        if (emailError != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Appointment booked, but email notification failed: $emailError',
-              ),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        }
         _showSuccessDialog();
       }
     } catch (e) {
@@ -443,7 +550,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Your appointment with Dr. ${widget.doctor['users']?['full_name']} is scheduled for ${DateFormat('MMM dd, hh:mm a').format(_selectedDate!)}',
+              'Your appointment with Dr. ${widget.doctor['users']?['full_name']} is scheduled for ${DateFormat('MMM dd, hh:mm a').format(_pendingScheduledAt ?? _selectedDate!)}',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSecondary),
             ),

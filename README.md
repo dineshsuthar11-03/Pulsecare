@@ -153,6 +153,7 @@ SMTP_USER=your_sender@gmail.com
 SMTP_PASS=your_gmail_app_password
 
 JITSI_APP_KEY=vpaas-magic-cookie-...
+SCHEDULING_UTC_OFFSET_MINUTES=330
 ```
 
 Email provider behavior:
@@ -246,6 +247,7 @@ Render deployment note:
 
 - Render sets `PORT` automatically; keep `const PORT = process.env.PORT || 3000` as-is.
 - Add backend environment variables in Render dashboard (`SUPABASE_*`, `JWT_SECRET`, `GROQ_API_KEY`, `EMAIL_PROVIDER`, `EMAIL_FROM`, `JITSI_APP_KEY`, plus either `RESEND_API_KEY` or `SMTP_*`).
+- Set `SCHEDULING_UTC_OFFSET_MINUTES` to match your primary booking timezone (IST is `330`).
 
 ---
 
@@ -311,11 +313,25 @@ Defined in `backend/routes/medicineRoutes.js` and `backend/controllers/medicineC
 
 Defined in `backend/routes/consultationRoutes.js` and `backend/controllers/consultationController.js`.
 
+- `GET /api/consultations?userId=<uuid>`
+	- Returns consultations for the given user (patient or doctor), enriched with doctor and patient profile info.
+
+- `POST /api/consultations`
+	- Body: `{ patientId, doctorId, scheduledAt, fee, symptoms? }`.
+	- Validates doctor availability and slot conflicts before creating the booking.
+	- Creates consultation + room code, then sends schedule emails to patient and doctor.
+
+- `PATCH /api/consultations/:id`
+	- Updates consultation fields (`status`, `notes`, `prescription`) from doctor workflows.
+
+- `GET /api/consultations/doctor/:doctorId/availability`
+	- Returns normalized availability (`days`, `start_time`, `end_time`, `slot_minutes`) for the doctor.
+
+- `GET /api/consultations/doctor/:doctorId/slots?date=YYYY-MM-DD`
+	- Returns bookable slots after filtering doctor availability + existing scheduled/ongoing consultations.
+
 - `POST /api/consultations/notify`
-	- Body: `{ patientId, doctorId, scheduledAt, consultationId?, roomCode? }`.
-	- Looks up patient & doctor in Supabase `users` table using server-side service role key.
-	- Formats localized date/time and constructs Jitsi room code and URL.
-	- Sends email notifications to both patient and doctor using the configured provider (`smtp` or `resend`).
+	- Legacy/manual notification endpoint kept for compatibility.
 
 ---
 

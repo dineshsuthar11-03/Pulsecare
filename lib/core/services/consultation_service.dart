@@ -1,7 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pulsecare/core/services/consultation_backend_service.dart';
 
 class ConsultationService {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final ConsultationBackendService _backend = ConsultationBackendService();
 
   // Create a new consultation
   Future<Map<String, dynamic>> createConsultation({
@@ -10,113 +12,34 @@ class ConsultationService {
     required double fee,
     String? symptoms,
   }) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      throw 'User not authenticated';
+    }
+
     try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw 'User not authenticated';
-
-      // Ensure a patient profile exists so the foreign key constraint on
-      // consultations.patient_id -> patients.id is satisfied, even for
-      // users created before the database trigger was added.
-      await _ensurePatientProfile(user.id);
-
-      // Generate a simple Jitsi room code for this consultation.
-      // It must be URL-safe: use only letters, numbers, dashes, underscores.
-      final roomCode = 'consult_${DateTime.now().millisecondsSinceEpoch}';
-
-      final response = await _supabase
-          .from('consultations')
-          .insert({
-            'patient_id': user.id,
-            'doctor_id': doctorId,
-            'scheduled_at': scheduledAt.toIso8601String(),
-            'fee': fee,
-            'symptoms': symptoms,
-            'status': 'scheduled',
-            'room_code': roomCode,
-          })
-          .select()
-          .single();
-
-      return Map<String, dynamic>.from(response as Map);
+      return await _backend.createConsultation(
+        patientId: user.id,
+        doctorId: doctorId,
+        scheduledAt: scheduledAt,
+        fee: fee,
+        symptoms: symptoms,
+      );
     } catch (e) {
       print('Error creating consultation: $e');
       throw 'Failed to book appointment: $e';
     }
   }
 
-  Future<void> _ensurePatientProfile(String userId) async {
-    try {
-      final existing = await _supabase
-          .from('patients')
-          .select('id')
-          .eq('id', userId)
-          .maybeSingle();
-
-      if (existing != null) {
-        return;
-      }
-
-      // Insert a minimal patient row; RLS policy allows users to insert
-      // their own patient profile.
-      await _supabase.from('patients').insert({
-        'id': userId,
-        'gender': 'Not specified',
-      });
-    } catch (e) {
-      // If this fails due to RLS or conflicts, let the main insert surface
-      // a meaningful error; we only log here to aid debugging.
-      print('Warning: Failed to ensure patient profile for $userId: $e');
-    }
-  }
-
   // Get consultations for the current user (as patient or doctor)
   Future<List<Map<String, dynamic>>> getConsultations() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      throw 'User not authenticated';
+    }
+
     try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw 'User not authenticated';
-
-      // Fetch consultations first without the problematic join
-      // We keep doctor join as it wasn't reported as broken, but removing patient:users join
-      final response = await _supabase
-          .from('consultations')
-          .select('*, doctor:doctors(users(full_name))')
-          .or('patient_id.eq.${user.id},doctor_id.eq.${user.id}')
-          .order('scheduled_at', ascending: true);
-
-      final List<Map<String, dynamic>> consultations =
-          List<Map<String, dynamic>>.from(response);
-
-      // Manually fetch patient details to fix the missing relationship issue
-      final patientIds = consultations
-          .map((c) => c['patient_id'] as String?)
-          .where((id) => id != null)
-          .toSet()
-          .toList();
-
-      if (patientIds.isNotEmpty) {
-        try {
-          // Attempt to fetch from 'users' table
-          final patientsResponse = await _supabase
-              .from('users')
-              .select('id, full_name')
-              .filter('id', 'in', patientIds);
-
-          final patientsMap = {for (var p in patientsResponse) p['id']: p};
-
-          for (var c in consultations) {
-            if (c['patient_id'] != null &&
-                patientsMap.containsKey(c['patient_id'])) {
-              c['patient'] = patientsMap[c['patient_id']];
-            }
-          }
-        } catch (e) {
-          print('Warning: Could not fetch patient details manually: $e');
-          // If public.users doesn't exist or permissions fail, we just leave patient as null
-          // The UI handles null/missing patient gracefully (showing "Unknown Patient" or "P")
-        }
-      }
-
-      return consultations;
+      return await _backend.getConsultations(userId: user.id);
     } catch (e) {
       print('Error fetching consultations: $e');
       return [];
@@ -126,10 +49,7 @@ class ConsultationService {
   // Update consultation status (for doctors)
   Future<void> updateStatus(String id, String status) async {
     try {
-      await _supabase
-          .from('consultations')
-          .update({'status': status})
-          .eq('id', id);
+      await _backend.updateConsultation(id: id, status: status);
     } catch (e) {
       print('Error updating status: $e');
       throw 'Failed to update status';
@@ -151,10 +71,12 @@ class ConsultationService {
 
       if (data.isEmpty) return;
 
-      await _supabase
-          .from('consultations')
-          .update(data)
-          .eq('id', id);
+      await _backend.updateConsultation(
+        id: id,
+        status: status,
+        notes: notes,
+        prescription: prescription,
+      );
     } catch (e) {
       print('Error updating consultation details: $e');
       throw 'Failed to update consultation details';

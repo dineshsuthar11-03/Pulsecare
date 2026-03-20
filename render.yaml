@@ -51,3 +51,5 @@ services:
         sync: false
       - key: JITSI_APP_KEY
         sync: false
+      - key: SCHEDULING_UTC_OFFSET_MINUTES
+        value: 330

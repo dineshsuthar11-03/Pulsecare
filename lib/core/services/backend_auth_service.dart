@@ -9,6 +9,38 @@ class BackendAuthService {
   /// and falls back to sensible defaults via AppConfig.
   static String get baseUrl => AppConfig.authBaseUrl;
 
+  Map<String, dynamic> _safeDecode(http.Response response) {
+    if (response.body.isEmpty) {
+      return {};
+    }
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      return {'data': decoded};
+    } catch (_) {
+      return {'error': response.body};
+    }
+  }
+
+  Map<String, dynamic> _normalizeResponse(
+    http.Response response,
+    String fallbackError,
+  ) {
+    final decoded = _safeDecode(response);
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return decoded;
+    }
+
+    final message = decoded['error'] ??
+        decoded['message'] ??
+        '$fallbackError (HTTP ${response.statusCode})';
+    return {'error': message.toString()};
+  }
+
   Future<Map<String, dynamic>> signup({
     required String email,
     required String password,
@@ -27,7 +59,7 @@ class BackendAuthService {
         }),
       );
 
-      return jsonDecode(response.body);
+      return _normalizeResponse(response, 'Signup failed');
     } catch (e) {
       return {'error': e.toString()};
     }
@@ -41,7 +73,11 @@ class BackendAuthService {
         body: jsonEncode({'email': email, 'password': password}),
       );
 
-      final data = jsonDecode(response.body);
+      final data = _normalizeResponse(response, 'Login failed');
+
+      if (data['error'] != null) {
+        return data;
+      }
 
       if (data['token'] != null) {
         final prefs = await SharedPreferences.getInstance();
@@ -72,7 +108,8 @@ class BackendAuthService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );
-      return jsonDecode(response.body);
+
+      return _normalizeResponse(response, 'Failed to send OTP');
     } catch (e) {
       return {'error': e.toString()};
     }
@@ -86,7 +123,7 @@ class BackendAuthService {
         body: jsonEncode({'email': email}),
       );
 
-      return jsonDecode(response.body);
+      return _normalizeResponse(response, 'Failed to resend OTP');
     } catch (e) {
       return {'error': e.toString()};
     }
@@ -103,7 +140,7 @@ class BackendAuthService {
         body: jsonEncode({'email': email, 'otp': otp}),
       );
 
-      return jsonDecode(response.body);
+      return _normalizeResponse(response, 'Failed to verify OTP');
     } catch (e) {
       return {'error': e.toString()};
     }
@@ -125,7 +162,7 @@ class BackendAuthService {
         }),
       );
 
-      return jsonDecode(response.body);
+      return _normalizeResponse(response, 'Failed to reset password');
     } catch (e) {
       return {'error': e.toString()};
     }

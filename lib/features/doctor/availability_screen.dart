@@ -74,10 +74,16 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final start =
+          '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}';
+      final end =
+          '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}';
+
       final availability = {
         'days': _days,
-        'start_time': '${_startTime.hour}:${_startTime.minute}',
-        'end_time': '${_endTime.hour}:${_endTime.minute}',
+        'start_time': start,
+        'end_time': end,
+        'slot_minutes': 60,
       };
 
       await _doctorService.updateDoctorProfile(

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
+import 'package:pulsecare/core/constants/app_config.dart';
 
 /// Groq-backed AI service that keeps the same interface as the old GeminiService.
 ///
@@ -18,6 +19,7 @@ class GeminiService {
       String.fromEnvironment('GROQ_API_KEY', defaultValue: '');
 
   bool _isInitialized = false;
+  bool _useBackendProxy = false;
   String _activeModelName = _modelName;
   String? _apiKey;
 
@@ -49,13 +51,40 @@ class GeminiService {
     }
 
     if (key == null || key.isEmpty) {
-      throw Exception('Groq API key is invalid or missing in environment');
+      // Web builds may miss .env at runtime; fallback to backend proxy API.
+      _useBackendProxy = true;
+      _isInitialized = true;
+      _activeModelName = 'backend-proxy';
+      debugPrint('[Groq] No client key found. Using backend proxy mode.');
+      return;
     }
 
     _apiKey = key;
     _isInitialized = true;
     _activeModelName = _modelName;
     debugPrint('[Groq] ✅ Initialized with model: $_activeModelName');
+  }
+
+  Future<String> _callBackendProxy(String input) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.backendBaseUrl}/api/ai/analyze'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'symptoms': input}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Backend AI Error: HTTP ${response.statusCode}. Please try again later.',
+      );
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final analysis = data['analysis'] as String?;
+    if (analysis == null || analysis.isEmpty) {
+      throw Exception('Backend AI response was empty');
+    }
+
+    return analysis;
   }
 
   /// Internal helper to call Groq Chat Completions.
@@ -150,14 +179,16 @@ Respond entirely in $targetLanguage.
 ''';
 
     try {
-      final content = await _callGroq([
-        {
-          'role': 'system',
-          'content':
-              'You are a careful, conservative medical triage assistant. Never provide definitive diagnoses; always encourage consultation with a doctor. Always answer in $targetLanguage.',
-        },
-        {'role': 'user', 'content': prompt},
-      ]);
+      final content = _useBackendProxy
+          ? await _callBackendProxy(prompt)
+          : await _callGroq([
+              {
+                'role': 'system',
+                'content':
+                    'You are a careful, conservative medical triage assistant. Never provide definitive diagnoses; always encourage consultation with a doctor. Always answer in $targetLanguage.',
+              },
+              {'role': 'user', 'content': prompt},
+            ]);
       return content;
     } catch (e) {
       debugPrint('[Groq] analyzeSymptoms error: $e');
@@ -217,14 +248,16 @@ Respond entirely in $targetLanguage.
 ''';
 
     try {
-      final content = await _callGroq([
-        {
-          'role': 'system',
-          'content':
-              'You are a cautious clinical pharmacist. Never give dosing specific to an individual patient and never override a doctor. Always answer in $targetLanguage.',
-        },
-        {'role': 'user', 'content': prompt},
-      ]);
+      final content = _useBackendProxy
+          ? await _callBackendProxy(prompt)
+          : await _callGroq([
+              {
+                'role': 'system',
+                'content':
+                    'You are a cautious clinical pharmacist. Never give dosing specific to an individual patient and never override a doctor. Always answer in $targetLanguage.',
+              },
+              {'role': 'user', 'content': prompt},
+            ]);
       return content;
     } catch (e) {
       debugPrint('[Groq] analyzeMedicine error: $e');
@@ -249,7 +282,9 @@ Respond entirely in $targetLanguage.
         ..._chatHistory,
       ];
 
-      final reply = await _callGroq(messages);
+      final reply = _useBackendProxy
+          ? await _callBackendProxy(message)
+          : await _callGroq(messages);
       _chatHistory.add({'role': 'assistant', 'content': reply});
       return reply;
     } catch (e) {
@@ -283,7 +318,9 @@ Respond entirely in $targetLanguage.
         ..._chatHistory,
       ];
 
-      final reply = await _callGroq(messages);
+      final reply = _useBackendProxy
+          ? await _callBackendProxy(message)
+          : await _callGroq(messages);
       _chatHistory.add({'role': 'assistant', 'content': reply});
 
       // Yield as a single chunk (UI already supports streaming semantics).

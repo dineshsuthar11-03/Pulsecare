@@ -23,8 +23,8 @@ class AppConfig {
       return _stripTrailingSlash(fromEnv);
     }
 
-    // Fallback local dev URL if env is missing.
-    return 'http://localhost:5000';
+    // Fallback to deployed backend if env is missing/unreadable in web builds.
+    return _fallbackBackendBaseUrl;
   }
 
   static String get authBaseUrl => '$backendBaseUrl/api/auth';
@@ -34,6 +34,9 @@ class AppConfig {
   static String _stripTrailingSlash(String value) {
     return value.endsWith('/') ? value.substring(0, value.length - 1) : value;
   }
+
+  static const String _fallbackBackendBaseUrl =
+      'https://pulsecare-backend.onrender.com';
 
   // These should match the constants previously hard-coded in main.dart
   static const String _fallbackSupabaseUrl =
