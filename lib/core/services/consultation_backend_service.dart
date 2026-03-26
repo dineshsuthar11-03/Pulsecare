@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:http/http.dart' as http;
 import 'package:pulsecare/core/constants/app_config.dart';
@@ -6,6 +7,36 @@ import 'package:pulsecare/core/constants/app_config.dart';
 class ConsultationBackendService {
   /// Base URL for consultation-related backend endpoints.
   static String get baseUrl => AppConfig.consultationsBaseUrl;
+  static const Duration _requestTimeout = Duration(seconds: 60);
+  static const int _maxAttempts = 2;
+
+  Future<http.Response> _executeWithRetry(
+    Future<http.Response> Function() request,
+  ) async {
+    Object? lastError;
+
+    for (var attempt = 1; attempt <= _maxAttempts; attempt++) {
+      try {
+        return await request().timeout(_requestTimeout);
+      } on TimeoutException catch (e) {
+        lastError = e;
+      } catch (e) {
+        lastError = e;
+        final text = e.toString().toLowerCase();
+        final isTransient = text.contains('failed host lookup') ||
+            text.contains('connection closed') ||
+            text.contains('connection timed out') ||
+            text.contains('clientexception');
+        if (!isTransient) rethrow;
+      }
+
+      if (attempt < _maxAttempts) {
+        await Future.delayed(const Duration(milliseconds: 1200));
+      }
+    }
+
+    throw lastError ?? Exception('Request failed after retries.');
+  }
 
   String _formatDate(DateTime date) {
     final year = date.year.toString().padLeft(4, '0');
@@ -46,19 +77,21 @@ class ConsultationBackendService {
     required double fee,
     String? symptoms,
   }) async {
-    final response = await http.post(
-      Uri.parse(baseUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'patientId': patientId,
-        'doctorId': doctorId,
-        'scheduledAt': scheduledAt.toIso8601String(),
-        'fee': fee,
-        'symptoms': symptoms,
-      }),
+    final response = await _executeWithRetry(
+      () => http.post(
+        Uri.parse(baseUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'patientId': patientId,
+          'doctorId': doctorId,
+          'scheduledAt': scheduledAt.toIso8601String(),
+          'fee': fee,
+          'symptoms': symptoms,
+        }),
+      ),
     );
 
-    if (response.statusCode != 201) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       throw _httpError(response, 'Failed to create consultation');
     }
 
@@ -79,7 +112,7 @@ class ConsultationBackendService {
     required String userId,
   }) async {
     final uri = Uri.parse(baseUrl).replace(queryParameters: {'userId': userId});
-    final response = await http.get(uri);
+    final response = await _executeWithRetry(() => http.get(uri));
 
     if (response.statusCode != 200) {
       throw _httpError(response, 'Failed to fetch consultations');
@@ -107,10 +140,12 @@ class ConsultationBackendService {
     if (notes != null) payload['notes'] = notes;
     if (prescription != null) payload['prescription'] = prescription;
 
-    final response = await http.patch(
-      Uri.parse('$baseUrl/$id'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
+    final response = await _executeWithRetry(
+      () => http.patch(
+        Uri.parse('$baseUrl/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      ),
     );
 
     if (response.statusCode != 200) {
@@ -119,8 +154,8 @@ class ConsultationBackendService {
   }
 
   Future<Map<String, dynamic>> getDoctorAvailability(String doctorId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/doctor/$doctorId/availability'),
+    final response = await _executeWithRetry(
+      () => http.get(Uri.parse('$baseUrl/doctor/$doctorId/availability')),
     );
 
     if (response.statusCode != 200) {
@@ -143,7 +178,7 @@ class ConsultationBackendService {
       queryParameters: {'date': _formatDate(date)},
     );
 
-    final response = await http.get(uri);
+    final response = await _executeWithRetry(() => http.get(uri));
 
     if (response.statusCode != 200) {
       throw _httpError(response, 'Failed to fetch available slots');
@@ -173,16 +208,18 @@ class ConsultationBackendService {
     String? roomCode,
   }) async {
     final uri = Uri.parse('$baseUrl/notify');
-    final response = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'patientId': patientId,
-        'doctorId': doctorId,
-        'scheduledAt': scheduledAt.toIso8601String(),
-        'consultationId': consultationId,
-        'roomCode': roomCode,
-      }),
+    final response = await _executeWithRetry(
+      () => http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'patientId': patientId,
+          'doctorId': doctorId,
+          'scheduledAt': scheduledAt.toIso8601String(),
+          'consultationId': consultationId,
+          'roomCode': roomCode,
+        }),
+      ),
     );
 
     if (response.statusCode != 200) {

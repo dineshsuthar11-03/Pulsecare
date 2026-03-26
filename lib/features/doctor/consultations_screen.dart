@@ -29,11 +29,26 @@ class _ConsultationsScreenState extends State<ConsultationsScreen>
 
   Future<void> _fetchConsultations() async {
     setState(() => _isLoading = true);
-    final results = await _service.getConsultations();
-    setState(() {
-      _allConsultations = results;
-      _isLoading = false;
-    });
+    try {
+      final results = await _service.getConsultations();
+      if (!mounted) return;
+      setState(() {
+        _allConsultations = results;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _allConsultations = [];
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not load consultations: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -174,9 +189,10 @@ class _ConsultationsScreenState extends State<ConsultationsScreen>
     final now = DateTime.now();
     final consultations = _allConsultations.where((c) {
       final scheduledAt = DateTime.parse(c['scheduled_at']);
+      final status = (c['status'] ?? 'scheduled').toString().toLowerCase();
       return isUpcoming
-          ? scheduledAt.isAfter(now)
-          : scheduledAt.isBefore(now);
+          ? scheduledAt.isAfter(now) && status != 'cancelled' && status != 'completed'
+          : scheduledAt.isBefore(now) || status == 'completed' || status == 'cancelled';
     }).toList();
 
     if (consultations.isEmpty) {

@@ -7,6 +7,22 @@ const resend = process.env.RESEND_API_KEY
     : null;
 
 let smtpTransporter = null;
+const EMAIL_SEND_TIMEOUT_MS = Number(process.env.EMAIL_SEND_TIMEOUT_MS || 15000);
+
+const withTimeout = async (promise, timeoutMs, timeoutMessage) => {
+    let timeoutHandle;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+            reject(new Error(timeoutMessage));
+        }, timeoutMs);
+    });
+
+    try {
+        return await Promise.race([promise, timeoutPromise]);
+    } finally {
+        clearTimeout(timeoutHandle);
+    }
+};
 
 const getSmtpCredentials = () => ({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -45,6 +61,9 @@ const getSmtpTransporter = () => {
         host: smtpCreds.host,
         port: smtpCreds.port,
         secure: smtpCreds.secure,
+        connectionTimeout: EMAIL_SEND_TIMEOUT_MS,
+        greetingTimeout: EMAIL_SEND_TIMEOUT_MS,
+        socketTimeout: EMAIL_SEND_TIMEOUT_MS,
         auth: {
             user: smtpCreds.user,
             pass: smtpCreds.pass,
@@ -71,26 +90,58 @@ const sendTextEmail = async ({ to, subject, text }) => {
     const provider = getActiveProvider();
 
     if (provider === 'smtp') {
-        const transporter = getSmtpTransporter();
-        await transporter.sendMail({
-            from: getFromAddress(provider),
-            to: recipients,
-            subject,
-            text,
-        });
-        return;
+        try {
+            const transporter = getSmtpTransporter();
+            await withTimeout(
+                transporter.sendMail({
+                    from: getFromAddress(provider),
+                    to: recipients,
+                    subject,
+                    text,
+                }),
+                EMAIL_SEND_TIMEOUT_MS,
+                'SMTP email request timed out.',
+            );
+            return;
+        } catch (smtpErr) {
+            // Automatic fallback to Resend when SMTP is configured but currently failing.
+            if (process.env.RESEND_API_KEY && resend) {
+                const { error } = await withTimeout(
+                    resend.emails.send({
+                        from: getFromAddress('resend'),
+                        to: recipients,
+                        subject,
+                        text,
+                    }),
+                    EMAIL_SEND_TIMEOUT_MS,
+                    'Resend email request timed out.',
+                );
+
+                if (error) {
+                    throw new Error(error.message || 'Failed to send email via Resend fallback.');
+                }
+
+                return;
+            }
+
+            throw smtpErr;
+        }
     }
 
     if (!process.env.RESEND_API_KEY || !resend) {
         throw new Error('RESEND_API_KEY is not configured.');
     }
 
-    const { error } = await resend.emails.send({
-        from: getFromAddress(provider),
-        to: recipients,
-        subject,
-        text,
-    });
+    const { error } = await withTimeout(
+        resend.emails.send({
+            from: getFromAddress(provider),
+            to: recipients,
+            subject,
+            text,
+        }),
+        EMAIL_SEND_TIMEOUT_MS,
+        'Resend email request timed out.',
+    );
 
     if (error) {
         throw new Error(error.message || 'Failed to send email via Resend.');

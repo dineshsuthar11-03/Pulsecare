@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pulsecare/core/theme/app_theme.dart';
@@ -96,7 +97,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
               .from('users')
               .select('role')
               .eq('id', user.id)
-              .maybeSingle();
+              .maybeSingle()
+              .timeout(const Duration(seconds: 12));
           role = response?['role'] as String?;
         }
 

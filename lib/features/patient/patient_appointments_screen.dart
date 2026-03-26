@@ -28,11 +28,26 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
 
   Future<void> _fetchAppointments() async {
     setState(() => _isLoading = true);
-    final results = await _service.getConsultations();
-    setState(() {
-      _appointments = results;
-      _isLoading = false;
-    });
+    try {
+      final results = await _service.getConsultations();
+      if (!mounted) return;
+      setState(() {
+        _appointments = results;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _appointments = [];
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not load appointments: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -246,7 +261,7 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
   Widget _buildAppointmentCard(Map<String, dynamic> appt) {
     final doctorName = appt['doctor']?['users']?['full_name'] ?? 'Doctor';
     final DateTime scheduledAt = DateTime.parse(appt['scheduled_at']);
-    final status = appt['status'] ?? 'scheduled';
+    final status = (appt['status'] ?? 'scheduled').toString().toLowerCase();
 
     Color statusColor = AppColors.primary;
     if (status == 'completed') statusColor = AppColors.success;
@@ -389,7 +404,8 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
                     ),
                   ],
                 ),
-                if (scheduledAt.isAfter(DateTime.now()))
+                if (scheduledAt.isAfter(DateTime.now()) &&
+                    (status == 'scheduled' || status == 'ongoing'))
                   ElevatedButton(
                     onPressed: () => _startCallAndReview(appt),
                     style: ElevatedButton.styleFrom(
@@ -414,6 +430,18 @@ class _PatientAppointmentsScreenState extends State<PatientAppointmentsScreen> {
     try {
       final consultationId = appt['id']?.toString();
       if (consultationId == null) {
+        return;
+      }
+
+      final status = (appt['status'] ?? 'scheduled').toString().toLowerCase();
+      if (status == 'cancelled' || status == 'completed') {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This consultation is not active for joining.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
         return;
       }
 

@@ -21,8 +21,10 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+  DateTime? _selectedSlotScheduledAt;
   Map<String, dynamic>? _doctorAvailability;
   List<TimeOfDay> _availableTimeSlots = [];
+  final Map<String, DateTime> _slotScheduleByKey = {};
 
   bool _isSlotsLoading = false;
   String? _slotsError;
@@ -114,12 +116,17 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
     return TimeOfDay(hour: hour, minute: minute);
   }
 
+  String _slotKey(TimeOfDay time) =>
+      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
   Future<void> _loadSlotsForDate(DateTime date) async {
     setState(() {
       _isSlotsLoading = true;
       _slotsError = null;
       _availableTimeSlots = [];
       _selectedTime = null;
+      _selectedSlotScheduledAt = null;
+      _slotScheduleByKey.clear();
     });
 
     try {
@@ -128,14 +135,31 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
         date: date,
       );
 
-      final parsedSlots = slots
-          .map((slot) => _parseSlotTime((slot['time'] ?? '').toString()))
-          .whereType<TimeOfDay>()
-          .toList();
+      final parsedSlots = <TimeOfDay>[];
+      final parsedMap = <String, DateTime>{};
+
+      for (final slot in slots) {
+        final time = _parseSlotTime((slot['time'] ?? '').toString());
+        final scheduledAtRaw = slot['scheduled_at']?.toString();
+        if (time == null || scheduledAtRaw == null || scheduledAtRaw.isEmpty) {
+          continue;
+        }
+
+        final scheduledAt = DateTime.tryParse(scheduledAtRaw);
+        if (scheduledAt == null) {
+          continue;
+        }
+
+        parsedSlots.add(time);
+        parsedMap[_slotKey(time)] = scheduledAt;
+      }
 
       if (!mounted) return;
       setState(() {
         _availableTimeSlots = parsedSlots;
+        _slotScheduleByKey
+          ..clear()
+          ..addAll(parsedMap);
         _isSlotsLoading = false;
       });
     } catch (e) {
@@ -269,7 +293,10 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
                       _loadSlotsForDate(date);
                     },
                     onTimeSelected: (time) =>
-                        setState(() => _selectedTime = time),
+                        setState(() {
+                          _selectedTime = time;
+                          _selectedSlotScheduledAt = _slotScheduleByKey[_slotKey(time)];
+                        }),
                   ),
                   const SizedBox(height: 12),
                   if (_isSlotsLoading)
@@ -418,13 +445,14 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
   Future<void> _handleBooking() async {
     setState(() => _isBooking = true);
 
-    final scheduledAt = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      _selectedTime!.hour,
-      _selectedTime!.minute,
-    );
+    final scheduledAt = _selectedSlotScheduledAt ??
+        DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute,
+        );
 
     _pendingScheduledAt = scheduledAt;
 
@@ -515,10 +543,19 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
         _showSuccessDialog();
       }
     } catch (e) {
+      final errorText = e.toString().toLowerCase();
+      if (errorText.contains('already booked') && _selectedDate != null) {
+        await _loadSlotsForDate(_selectedDate!);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text(
+              errorText.contains('already booked')
+                  ? 'That slot was just taken. Slots are refreshed, please choose another time.'
+                  : 'Error: $e',
+            ),
             backgroundColor: AppColors.error,
           ),
         );

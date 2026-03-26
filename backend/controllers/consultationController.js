@@ -176,7 +176,7 @@ const fetchBookedConsultationsForDoctorAndDate = async ({ doctorId, dateString }
 
   const { data, error } = await supabase
     .from('consultations')
-    .select('id, scheduled_at, status')
+    .select('id, patient_id, doctor_id, scheduled_at, status, room_code')
     .eq('doctor_id', doctorId)
     .in('status', ACTIVE_BOOKING_STATUSES)
     .gte('scheduled_at', startIso)
@@ -442,6 +442,31 @@ exports.createConsultation = async (req, res) => {
     });
 
     if (hasConflict) {
+      // Idempotency: if the exact conflicting slot already belongs to the same
+      // patient and doctor, return that existing consultation instead of failing.
+      const conflictingConsultation = bookedConsultations.find((consultation) => {
+        const bookedDate = new Date(consultation.scheduled_at);
+        if (getLocalDateKey(bookedDate) !== localDateKey) {
+          return false;
+        }
+
+        const bookedMinute = getLocalMinutesOfDay(bookedDate);
+        return Math.abs(bookedMinute - minuteOfDay) < availability.slotMinutes;
+      });
+
+      if (
+        conflictingConsultation &&
+        conflictingConsultation.patient_id === patientId &&
+        conflictingConsultation.doctor_id === doctorId
+      ) {
+        return res.status(200).json({
+          success: true,
+          reusedExisting: true,
+          consultation: conflictingConsultation,
+          message: 'Existing consultation returned for this slot.',
+        });
+      }
+
       return res.status(409).json({
         error: 'Selected slot is already booked. Please choose another time.',
       });
